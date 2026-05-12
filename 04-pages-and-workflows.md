@@ -1,109 +1,258 @@
 # 04 — Frontend Pages & Workflows
 
-> 6 new pages under `/clients/tiktok-fbt/*`. Top-level sidebar entry **TikTok FBT** is a sibling of the existing **TikTok Shop** entry — not a child. A merchant with both subscriptions sees both groups in the sidebar, independently.
->
-> Total page count by phase: Phase 1 = 4 pages, Phase 2 = +1 (Inbound), Phase 3 = +1 (Fees). Reuse map at the bottom.
+> 6 new merchant-facing pages + 1 admin-only page + 2 existing pages get modifications. The sidebar renders **three possible views** under "TikTok Shop" — General-only, FBT-only, or Hybrid — driven by per-account `fbm_enabled` / `fbt_enabled` flags aggregated across the client's TikTok accounts.
 
 ---
 
-## Sidebar registration
+## 1. Sidebar — three conditional views
 
-In `frontend_wms_v/src/constants/clientSidebarNavLinks.constant.js`, add a **new top-level** entry after the existing TikTok Shop block (which ends around line 413):
+The two sub-groups under "TikTok Shop" are rendered **independently**, each gated by its own aggregated flag:
+
+| Client's accounts collectively have... | Sidebar shows under "TikTok Shop" |
+|---|---|
+| At least one with `fbm_enabled=true` | General TikTok submodules (Accounts, Active/Pending/Deactivated products) |
+| At least one with `fbt_enabled=true` | FBT submodules (Dashboard, Inventory, Orders, Inbound, Fees) |
+| Both conditions true | Both groups, in that order |
+
+**One edge case worth surfacing explicitly:** the "Accounts" page itself sits inside the General group, but it must remain reachable even on FBT-only clients because that's where the FBT toggle lives. We solve this by always including the Accounts entry — it's the *product/listing* entries that disappear for FBT-only merchants, not Accounts.
+
+In `frontend_wms_v/src/constants/clientSidebarNavLinks.constant.js`:
 
 ```javascript
-// EXISTING — do not modify
-{
-  id: 19,
-  name: "TikTok Shop",
-  icon: <SiTiktok size={24} />,
-  link: "#",
-  children: [
-    { id: 1901, name: "Active Products", link: "/clients/tiktok/active-products" },
-    { id: 1902, name: "Pending Products", link: "/clients/tiktok/pending-products" },
-    { id: 1903, name: "Accounts", link: "/clients/tiktok/accounts" },
-  ],
-},
+// Inside the sidebar builder (called whenever accounts change)
+const buildTiktokGroup = (accounts) => {
+  const anyFbmEnabled = accounts.some(a => a.fbm_enabled === true);
+  const anyFbtEnabled = accounts.some(a => a.fbt_enabled === true);
 
-// NEW — sibling, top-level, gated by feature flag tiktok_fbt
-{
-  id: 20,
-  name: "TikTok FBT",
-  icon: <MdLocalShipping size={24} />,                  // or a TikTok-FBT-specific icon
-  link: "#",
-  featureFlag: "tiktok_fbt",
-  children: [
-    { id: 2001, name: "Dashboard",         link: "/clients/tiktok-fbt/dashboard"  },
-    { id: 2002, name: "Accounts",          link: "/clients/tiktok-fbt/accounts"   },
-    { id: 2003, name: "Inventory",         link: "/clients/tiktok-fbt/inventory"  },
-    { id: 2004, name: "Orders",            link: "/clients/tiktok-fbt/orders"     },
-    { id: 2005, name: "Inbound Shipments", link: "/clients/tiktok-fbt/inbound",
-      featureFlag: "tiktok_fbt_inbound" },
-    { id: 2006, name: "Fees & Reimbursements", link: "/clients/tiktok-fbt/fees",
-      featureFlag: "tiktok_fbt_fees" },
-  ],
-},
+  // Always-visible: Accounts page (entry point for both modes' toggles)
+  const accountsEntry = { id: 1901, name: 'Accounts', link: '/clients/tiktok/accounts' };
+
+  // General TikTok product/listing entries — hidden on FBT-only clients
+  const generalEntries = anyFbmEnabled ? [
+    { id: 1902, name: 'Active products',    link: '/clients/tiktok/active-products' },
+    { id: 1903, name: 'Pending products',   link: '/clients/tiktok/pending-products' },
+    { id: 1904, name: 'Deactivated',        link: '/clients/tiktok/deactivated-products' },
+  ] : [];
+
+  // FBT entries — hidden on FBM-only clients
+  const fbtEntries = anyFbtEnabled ? [
+    { id: 1910, name: '── FBT ──',                 isHeading: true },
+    { id: 1911, name: 'FBT Dashboard',             link: '/clients/tiktok/fbt/dashboard' },
+    { id: 1912, name: 'FBT Inventory',             link: '/clients/tiktok/fbt/inventory' },
+    { id: 1913, name: 'FBT Orders',                link: '/clients/tiktok/fbt/orders' },
+    { id: 1914, name: 'FBT Inbound shipments',     link: '/clients/tiktok/fbt/inbound',
+      featureFlag: 'tiktok_fbt_inbound' },
+    { id: 1915, name: 'FBT Fees',                  link: '/clients/tiktok/fbt/fees',
+      featureFlag: 'tiktok_fbt_fees' },
+  ] : [];
+
+  // Insert a heading above the general group only when both groups render,
+  // so hybrid clients see clear separation. Single-mode clients see no headings.
+  const generalHeading = (anyFbmEnabled && anyFbtEnabled)
+    ? [{ id: 1900, name: '── General ──', isHeading: true }]
+    : [];
+
+  return {
+    id: 19,
+    name: 'TikTok Shop',
+    icon: <SiTiktok size={24} />,
+    link: '#',
+    children: [
+      accountsEntry,
+      ...generalHeading,
+      ...generalEntries,
+      ...fbtEntries,
+    ]
+  };
+};
 ```
 
-`useModulePermissionStore.fetchSideMenus()` already filters server-driven. A merchant without `tiktok_fbt` feature doesn't see the entire group. A merchant with only seller subscription sees only "TikTok Shop". A merchant with only FBT subscription sees only "TikTok FBT". A merchant with both sees both.
+The builder re-runs whenever `useTiktokAccountsStore` accounts change (after connect, FBT enable/disable, or FBM disable), so the sidebar reshapes within one render tick. `useModulePermissionStore` still filters server-driven; the inline `featureFlag` check handles Phase 2/3 progressive rollout.
+
+**Residual-data safeguard:** even when a merchant flips an account to FBT-only, the General entries stay visible if `tiktok_orders` still contains rows with `fulfilment_mode='fbm'` for that client (so the merchant can reach historical orders and returns). The aggregate check becomes:
+
+```javascript
+const anyFbmEnabled = accounts.some(a => a.fbm_enabled === true)
+                   || clientHasHistoricalFbmOrders;  // boolean from accounts store
+```
+
+`clientHasHistoricalFbmOrders` is computed server-side in the same payload that returns `accounts` (cheap `EXISTS` query) so the sidebar needs no second round-trip.
 
 ---
 
-## Service layer
+## 2. Existing pages that get modified (2 pages)
 
-### New file: `src/services/TiktokFbtService.js`
+### M1. Accounts page — `/clients/tiktok/accounts`
 
-Completely separate from `src/services/TiktokService.js`. Different base URL (`/api/tiktok-fbt` vs `/api/tiktok`).
+The biggest UI change: each account card gains a **"Fulfilment modes"** panel with two independent toggles — one for FBM (seller-fulfilled, default ON) and one for FBT (default OFF). The card must reach a state where at least one toggle is ON (DB constraint `chk_accounts_any_mode`); the UI disables the last remaining ON toggle and shows a tooltip explaining why.
+
+**Before** (today): card shows account name, shop ID, status, sync toggles, view/disconnect actions.
+
+**After**: same card + a new section near the bottom titled "Fulfilment modes":
+
+```
+Fulfilment modes
+────────────────
+[●━━] Seller-fulfilled (FBM)        Active · 3,420 listings synced
+[━━○] Fulfilled by TikTok (FBT)     Not enabled — [Enable FBT]
+```
+
+Each toggle has its own ON/OFF surface:
+
+- **FBM toggle**
+  - ON (default): "Seller-fulfilled — TikTok orders flow into your WMS picker queue. X listings active." No action buttons; this is the standard mode.
+  - OFF: "Seller fulfilment disabled. Orders for this shop are handled exclusively by TikTok FBT." Shown only when the merchant has explicitly converted the shop to FBT-only. `[Re-enable FBM]` button.
+  - Disabling FBM requires confirmation modal: "All future TikTok orders for this shop will be handled by TikTok FBT. Existing FBM orders in progress will complete normally. Continue?"
+
+- **FBT toggle**
+  - OFF (default): "Enable FBT to mirror TikTok-fulfilled inventory and orders for this shop. [Learn more]"
+  - ON: capability summary (regions covered, FBT shop ID), last verification time, last inventory sync, `[Sync now]` / `[Re-verify capabilities]` / `[Disable FBT]` buttons.
+
+**Flow when FBT clicked OFF→ON:**
+
+```
+1. Click toggle → confirmation modal "Verify FBT eligibility for shop X?"
+2. POST /api/tiktok/accounts/:id/fbt/enable
+3. Backend calls TikTok to verify
+4. If not enrolled → toast "This shop is not enrolled in FBT. Apply: <link>"
+5. If enrolled → toggle flips, capability summary appears, sidebar refreshes (FBT items now visible)
+```
+
+**Flow when FBM clicked ON→OFF:**
+
+```
+1. Click toggle → confirmation modal as above
+2. POST /api/tiktok/accounts/:id/fbm/disable
+3. Backend rejects with 400 if fbt_enabled=false on the same row (constraint guard before DB)
+4. Backend rejects with 400 if any open FBM order exists (configurable: warn-only vs hard-block)
+5. Otherwise: UPDATE accounts SET fbm_enabled=false; publish activity log; sidebar reshapes
+```
+
+The reverse `[Re-enable FBM]` is one click with no eligibility check — FBM is always available to any connected TikTok shop.
+
+**Edge state — admin-paused publishing.** The `accounts.publish_fbt_to_wms` column is an admin-only kill-switch (default TRUE; see `02-data-model-changes.md` §A1). When ops sets it to `FALSE`, the merchant's FBT toggle stays ON but no RabbitMQ messages flow to core-service. The Accounts card surfaces this state with a single amber banner above the Fulfilment modes panel:
+
+> **FBT publishing temporarily paused.** Your shop is enabled, but our team has paused data flow to your WMS while we resolve a downstream issue. New FBT orders and inventory updates will resume once paused is lifted — no action needed from you. Contact support if this banner is still here after 24 hours.
+
+The banner appears whenever `account.fbt_enabled=true AND account.publish_fbt_to_wms=false`. Merchants cannot dismiss it — it disappears the moment ops re-enables publishing. The FBT toggle controls in the card are not greyed out (the merchant can still disable FBT entirely if they want), but the `[↻ Sync FBT now]` and `[Re-verify capabilities]` buttons are disabled with a tooltip explaining why.
+
+### M2. Central Orders page — `/clients/order` (existing core WMS page)
+
+**Visually unchanged.** The only change is a single SQL clause added to the listing query: `WHERE orders.created_via != 'tiktok_fbt'`. FBT orders are filtered out entirely. No filter chip, no FBT badge, no FBT rows — the merchant goes to the dedicated FBT Orders page (P7 below) for those.
+
+The picker queue `/clients/order/awaiting-pick` already filters by `order_fulfillments.fulfillment_type != 'fbt'` so FBT is already excluded there. Add an info callout at the bottom of that page reading: "FBT orders are not shown here — TikTok fulfils them. See [TikTok Shop › FBT › Orders]."
+
+---
+
+## 3. New merchant-facing pages (6 pages)
+
+### P1. FBT Dashboard — `/clients/tiktok/fbt/dashboard`
+
+**Purpose:** the daily morning view.
+**Layout:** 4 stat cards (Connected FBT accounts · Active FBT SKUs · Units in FBT FCs · Orders today) + a Stock-health donut + a 30-day sales chart + a Reorder Alerts table.
+**Key action:** click a red SKU row → opens the Inbound wizard pre-filled.
+
+### P2. FBT Inventory — `/clients/tiktok/fbt/inventory`
+
+**Purpose:** SKU-level mirror of TikTok FBT stock.
+**Layout:** filter bar (region, account, health, search) + table with columns: SKU, image, name, fulfillable, inbound, reserved, unfulfillable, days-of-cover, health badge, **WMS own-warehouse stock** (the hybrid SKU give-away).
+**Key action:** click row → drawer with breakdown JSONB, 30-day sales bars, [Create inbound shipment].
+
+### P3. FBT Orders — `/clients/tiktok/fbt/orders`
+
+**Purpose:** the only place FBT orders appear. Read-only lens — TikTok fulfils these, the merchant just monitors.
+**Layout:** filter bar (status, date range, account, search) + table with columns: order #, date, items, total, status, tracking, customer.
+**Sidebar position:** between FBT Inventory and FBT Inbound shipments (user-specified order).
+**Key actions:**
+- Click row → drawer with order detail, items, customer address (PII masked), TikTok-side status timeline (AWAITING_SHIPMENT → IN_TRANSIT → DELIVERED).
+- `[Sync now]` — on-demand poll, rate-limited.
+- `[Export CSV]` — current filtered set.
+**What this page is NOT:** an action queue. The merchant doesn't pick, pack, ship, or confirm anything here. Every row is informational.
+
+### P4. FBT Inbound shipments — list — `/clients/tiktok/fbt/inbound` (Phase 2)
+
+**Purpose:** track all shipments to TikTok FCs.
+**Layout:** filter bar + table: shipment#, created, destination, units, status, tracking link.
+**Key action:** [+ New] opens wizard; row → detail page.
+
+### P5. FBT Inbound shipments — wizard — `/clients/tiktok/fbt/inbound/new` (Phase 2)
+
+**Purpose:** 4-step wizard to create an inbound shipment.
+**Steps:** Products & quantities → Destination FC → Review → Labels & ship.
+**Key action:** [Submit plan] on step 3 commits to TikTok and creates the shipment row.
+
+### P6. FBT Inbound shipment — detail — `/clients/tiktok/fbt/inbound/[id]` (Phase 2)
+
+**Purpose:** live status of one shipment.
+**Layout:** header with status pill, key dates, 3 stat cards (from/to/units), timeline of state transitions, items table with planned/shipped/received/damaged/short columns.
+**Key actions:** [Cancel shipment] (pre-shipment), [Open in TikTok ↗], discrepancy review.
+
+### P7. FBT Fees & Reimbursements — `/clients/tiktok/fbt/fees` (Phase 3)
+
+**Purpose:** financial reconciliation.
+**Layout:** 4 stat cards (Total fees, Pick & pack, Storage, Reimbursed) + bar chart (fees by type, by week) + discrepancy alerts panel + fee history table + reimbursement claims table.
+**Key action:** [Submit dispute] on a charge → opens dispute form or external TikTok link.
+
+---
+
+## 4. New admin-only page (1 page)
+
+### A1. Webhook events admin — `/clients/tiktok/fbt/admin/webhooks`
+
+**Purpose:** engineers/support debug "why didn't this order arrive?"
+**Layout:** filters + table: received timestamp, event type, status (processed/duplicate/failed), latency, account. Click row → full payload viewer.
+**Access:** super-admin only. Not in normal sidebar.
+
+---
+
+## 5. Service layer additions
+
+### File: `src/services/TiktokFbtService.js`
+
+Separate from existing `TiktokService.js`. Different base URL prefix.
 
 ```javascript
-import { createApiRequest } from "@/helpers/axios";
-import { API_URL } from "@/helpers/apiUrl";
+import { createApiRequest } from '@/helpers/axios';
+import { API_URL } from '@/helpers/apiUrl';
 
-const api = createApiRequest(API_URL);  // axios instance; baseURL handled by gateway routing
+const api = createApiRequest(API_URL);
 
 const Queries = {
-  // Accounts
-  getAccounts:        ()       => api.get("/tiktok-fbt/accounts"),
-  getAccount:         (id)     => api.get(`/tiktok-fbt/accounts/${id}`),
-
   // Dashboard
-  getDashboard:       (params) => api.get("/tiktok-fbt/dashboard", { params }),
+  getDashboard:       (params) => api.get('/tiktok/fbt/dashboard', { params }),
 
   // Inventory
-  getInventory:       (params) => api.get("/tiktok-fbt/inventory", { params }),
-  getInventoryItem:   (id)     => api.get(`/tiktok-fbt/inventory/${id}`),
+  getInventory:       (params) => api.get('/tiktok/fbt/inventory', { params }),
+  getInventoryItem:   (id)     => api.get(`/tiktok/fbt/inventory/${id}`),
 
-  // Orders
-  getOrders:          (params) => api.get("/tiktok-fbt/orders", { params }),
-  getOrder:           (id)     => api.get(`/tiktok-fbt/orders/${id}`),
+  // Orders (lens — proxies to existing endpoint with fulfilment_mode filter)
+  getFbtOrders:       (params) => api.get('/tiktok/fbt/orders', { params }),
 
   // Phase 2
-  getInboundList:     (params) => api.get("/tiktok-fbt/inbound", { params }),
-  getInbound:         (id)     => api.get(`/tiktok-fbt/inbound/${id}`),
-  getFcWarehouses:    (accId)  => api.get(`/tiktok-fbt/accounts/${accId}/fcs`),
+  getInbound:         (params) => api.get('/tiktok/fbt/inbound', { params }),
+  getInboundOne:      (id)     => api.get(`/tiktok/fbt/inbound/${id}`),
+  getFcOptions:       (accId)  => api.get(`/tiktok/fbt/accounts/${accId}/fcs`),
 
   // Phase 3
-  getFees:            (params) => api.get("/tiktok-fbt/fees", { params }),
-  getReimbursements:  (params) => api.get("/tiktok-fbt/reimbursements", { params }),
+  getFees:            (params) => api.get('/tiktok/fbt/fees', { params }),
+  getReimbursements:  (params) => api.get('/tiktok/fbt/reimbursements', { params }),
 };
 
 const Commands = {
-  // Accounts
-  connectAccount:     (payload)         => api.post("/tiktok-fbt/accounts/connect", payload),
-  disconnectAccount:  (id)              => api.post(`/tiktok-fbt/accounts/${id}/disconnect`),
-  syncAccount:        (id)              => api.post(`/tiktok-fbt/accounts/${id}/sync`),
-  linkSellerAccount:  (id, sellerAccId) => api.patch(`/tiktok-fbt/accounts/${id}/link-seller`,
-                                                     { sellerAccountId: sellerAccId }),
+  // FBT toggle (calls existing accounts controller — not under /fbt/)
+  enableFbt:          (accId)            => api.post(`/tiktok/accounts/${accId}/fbt/enable`),
+  disableFbt:         (accId)            => api.post(`/tiktok/accounts/${accId}/fbt/disable`),
+  syncFbtAccount:     (accId)            => api.post(`/tiktok/fbt/accounts/${accId}/sync`),
 
   // Phase 2
-  createInbound:      (payload)    => api.post("/tiktok-fbt/inbound", payload),
-  submitInbound:      (id)         => api.post(`/tiktok-fbt/inbound/${id}/submit`),
-  confirmInbound:     (id)         => api.post(`/tiktok-fbt/inbound/${id}/confirm`),
-  cancelInbound:      (id)         => api.post(`/tiktok-fbt/inbound/${id}/cancel`),
-  getInboundLabel:    (id)         => api.get(`/tiktok-fbt/inbound/${id}/label`),
-  markShipped:        (id, body)   => api.post(`/tiktok-fbt/inbound/${id}/ship`, body),
+  createInbound:      (payload)          => api.post('/tiktok/fbt/inbound', payload),
+  submitInbound:      (id)               => api.post(`/tiktok/fbt/inbound/${id}/submit`),
+  cancelInbound:      (id)               => api.post(`/tiktok/fbt/inbound/${id}/cancel`),
+  getInboundLabel:    (id)               => api.get(`/tiktok/fbt/inbound/${id}/label`),
+  markShipped:        (id, body)         => api.post(`/tiktok/fbt/inbound/${id}/ship`, body),
 
   // Phase 3
-  submitDispute:      (chargeId, body) => api.post(`/tiktok-fbt/charges/${chargeId}/dispute`, body),
+  submitDispute:      (chargeId, body)   => api.post(`/tiktok/fbt/charges/${chargeId}/dispute`, body),
 };
 
 export default { Queries, Commands };
@@ -113,301 +262,56 @@ export default { Queries, Commands };
 
 ```
 src/stores/tiktok-fbt/
-├── useTiktokFbtAccountsStore.js
 ├── useTiktokFbtDashboardStore.js
 ├── useTiktokFbtInventoryStore.js
 ├── useTiktokFbtOrdersStore.js
-├── useTiktokFbtInboundStore.js    (Phase 2)
-├── useTiktokFbtFeesStore.js       (Phase 3)
-└── index.js                       (barrel export)
+├── useTiktokFbtInboundStore.js     (Phase 2)
+├── useTiktokFbtFeesStore.js        (Phase 3)
+└── index.js
 ```
 
-Each store mirrors the existing TikTok store pattern: `loading`, `items[]`, `pagination`, `filters`, `selectedIds[]`, `get…` / `setFilters` / command methods.
-
-### Constants
-
-```
-src/constants/tiktok-fbt/
-├── tiktokFbtInventory.constant.js     (table header definitions)
-├── tiktokFbtOrders.constant.js
-├── tiktokFbtInbound.constant.js       (Phase 2)
-├── tiktokFbtFees.constant.js          (Phase 3)
-└── tiktokFbtHealth.constant.js        (green/amber/red thresholds)
-```
-
-Also: register channel ID in `src/constants/channelRoutes.constant.js` so dashboard channel tiles can deep-link.
+The existing `useTiktokAccountsStore` gets a small extension: `enableFbt(accountId)` and `disableFbt(accountId)` action methods that hit the new endpoints and refresh the account list (so the sidebar recomputes).
 
 ---
 
-## Page-by-page
+## 6. Workflow summaries
 
-### P1.1 — FBT Dashboard
+**Enabling FBT for the first time:** merchant opens `/clients/tiktok/accounts`, clicks the "Enable FBT" toggle on a connected account → modal confirms → verification call to TikTok → toggle flips green → sidebar refreshes with FBT items → within 15 min, FBT Inventory populates.
 
-**Route:** `/clients/tiktok-fbt/dashboard`
-**Phase:** 1
-**Purpose:** Single-screen health view across all the merchant's FBT accounts.
-**Reuses:** `<StatCard>`, `<CounterCard>`, MUI X Charts (line chart for sales-7d), `<PageHeadingWithBreadcrumb>`, `useTiktokFbtDashboardStore`.
+**Daily check:** merchant opens FBT Dashboard, sees reorder alerts. Clicks red SKU → lands on FBT Inventory filtered to that SKU → clicks [Create inbound] → wizard pre-fills → 5 min later, shipment created.
 
-**Layout (top to bottom):**
+**A buyer places an FBT order:** TikTok webhook → tiktok-microservice → routes to FBT publisher → core-service creates Order with `createdVia='tiktok_fbt'`, OrderFulfillment(`type='fbt'`) → order appears in central order list with badge → picker queue does NOT show it.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  TikTok FBT Dashboard                            [Last synced: 7m ago]  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐            │
-│  │ Connected  │ │ FBT SKUs   │ │ Units in   │ │ FBT orders │            │
-│  │ accounts   │ │ active     │ │ FBT FCs    │ │ today      │            │
-│  │     2      │ │    147     │ │   3,840    │ │     58     │            │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘            │
-│                                                                          │
-│  ┌────────────────────────────┐  ┌─────────────────────────────────┐    │
-│  │ Stock health               │  │ FBT sales (last 30 days)         │    │
-│  │  ● Green:  124             │  │ [line chart]                     │    │
-│  │  ● Amber:   18             │  │                                  │    │
-│  │  ● Red:      5  →[click]   │  │                                  │    │
-│  └────────────────────────────┘  └─────────────────────────────────┘    │
-│                                                                          │
-│  ┌─ Reorder alerts (red < 14 days cover) ───────────────────────────┐   │
-│  │  SKU         Days cover    Fulfillable    Velocity/day    Action │   │
-│  │  WIDGET-RED      6.5            42           6.5         [Plan]  │   │
-│  └────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-**User actions:**
-- Click "Red: 5" → `/clients/tiktok-fbt/inventory?health=red`.
-- Click `[Plan]` next to a red SKU → opens Phase-2 inbound wizard pre-filled with that SKU. Disabled in Phase 1 with tooltip.
-
-**Edge cases:** zero accounts → empty state with CTA "Connect your first FBT account". One account but no SKUs synced → "First sync in progress — back in 15 minutes." Last sync > 60 min ago → red banner "Sync stalled — check account status".
+**Monthly fee reconciliation (Phase 3):** 03:15 cron pulls statement → fees ingested → merchant opens FBT Fees the next morning, exports CSV.
 
 ---
 
-### P1.2 — FBT Accounts
+## 7. Component reuse map
 
-**Route:** `/clients/tiktok-fbt/accounts`
-**Phase:** 1
-**Purpose:** Add/remove FBT account connections. **Completely separate from `/clients/tiktok/accounts` (the seller page).**
-**Reuses:** `<AccountContainer>`, `<Card>`, `<AddAccountModal>`, `<EditAccountModal>` patterns from existing TikTok accounts. Cloned visually, points at TikTokFbtService.
-
-**Layout:**
-
-```
-TikTok FBT Accounts                                    [+ Connect FBT account]
-
-┌──── Card: Acme Ltd — UK FBT ─────────────────────────────────────────┐
-│  Region: GB              Shop ID: 7290xxxxxxx                          │
-│  Status: ● Connected     Last verified: 2026-05-12 09:14               │
-│  Sync orders: ✓   Sync inventory: ✓   Publish to WMS: ✓                │
-│  Linked seller account: Acme Ltd — Seller (id 142)  [Change link]      │
-│  [View capabilities] [Disconnect] [Sync now]                           │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-**Connect flow (most important UX moment in Phase 1):**
-
-```
-1. Click "+ Connect FBT account"
-   → Modal opens with: shop region dropdown (GB | US), continue button.
-
-2. Click "Continue"
-   → Redirect to TikTok OAuth (separate redirect URI from seller flow)
-   → User authorises FBT shop on TikTok side
-   → TikTok redirects back to /api/tiktok-fbt/auth/callback
-   → tiktok-fbt-microservice exchanges code for tokens
-   → Stores in fbt_accounts (encrypted)
-   → Verifies FBT capabilities via /authorization/202309/shops
-   → If shop is NOT enrolled in FBT: shows error "This shop is not enrolled in TikTok FBT. Apply here: [TikTok link]"
-   → If enrolled: redirects to /clients/tiktok-fbt/accounts with success toast
-
-3. After connect, an interstitial asks:
-   "Is this the same TikTok shop as one of your existing seller connections?"
-   - Dropdown of seller accounts (read from /api/tiktok/accounts — different service)
-   - "None of the above" option
-   - Stores linked_seller_account_id in fbt_accounts (informational only)
-```
-
-**Edge cases:**
-- Same TikTok shop already connected as FBT → unique constraint blocks → "Already connected as FBT" message.
-- User has no seller accounts in TikTok → skip the link step, link can be added later via `[Change link]`.
-- Disconnect while orders in flight → row soft-deletes; FBT orders already in core-service WMS continue to be tracked. New inventory polls stop.
-
----
-
-### P1.3 — FBT Inventory
-
-**Route:** `/clients/tiktok-fbt/inventory`
-**Phase:** 1
-**Purpose:** SKU-level mirror of TikTok FBT stock. Most-used page after launch.
-**Reuses:** Custom table primitives (`<TableContainer>`, `<TableHeader>`, etc.), `<TextFilter>`, `<OperatorFilter>`, `<OptionsSelector>`, `<BulkActionBar>`, `<PreviewableImage>`. Mirrors Amazon `fba-inventory.jsx` visual pattern.
-
-**Layout:**
-
-```
-FBT Inventory                                  Last synced: 7m ago [Refresh]
-
-[Region: UK ▾]  [Account: All ▾]  [Health: All ▾]  [Search SKU…]
-
-┌─────┬───────┬─────────────┬──────┬──────┬─────┬───────┬───────┬─────────┬─────────┐
-│  ☐  │ Image │ SKU / Name  │Fulfil│Inbnd │Resv │ Unfull│ Days  │ Health  │ WMS own │
-│     │       │             │-lable│      │     │       │ cover │         │ stock   │
-├─────┼───────┼─────────────┼──────┼──────┼─────┼───────┼───────┼─────────┼─────────┤
-│  ☐  │ [img] │ WIDGET-RED-L│  42  │ 120  │  3  │   1   │  6.5  │ ● Red   │  85     │
-│  ☐  │ [img] │ WIDGET-BLU-L│ 200  │   0  │  8  │   0   │ 41.7  │ ● Green │   0     │
-│  …                                                                                 │
-└─────┴───────┴─────────────┴──────┴──────┴─────┴───────┴───────┴─────────┴─────────┘
-
-[3 selected]  [Mark for replenishment]  [Export CSV]
-```
-
-The "WMS own stock" column joins to core WMS variation actualQuantity — gives the merchant context on whether they have stock to ship into FBT.
-
-**User actions:**
-- Click row → drawer with full breakdown (inbound: working/shipped/receiving, etc.), 30-day sales line chart.
-- Filter by health → URL syncs (`?health=red`).
-- Bulk-mark for replenishment → opens Phase-2 wizard with pre-selected SKUs.
-- Export CSV → client-side via `papaparse`.
-
-**Edge cases:**
-- New account, no data yet → empty state with countdown to next 15-min cron.
-- SKU in FBT inventory but NOT in WMS catalogue → flagged "Unmapped" with action to create a catalogue entry.
-- SKU in WMS catalogue with `variation_listing.fulfilment_mode='fbt'` but no inventory in TikTok yet → shown with all-zero counts and badge "Awaiting first inbound".
-
----
-
-### P1.4 — FBT Orders
-
-**Route:** `/clients/tiktok-fbt/orders`
-**Phase:** 1
-**Purpose:** FBT-specific lens on orders that flow through `createdVia='tiktok_fbt'`.
-**Reuses:** Existing order table pattern from `amazon/orders.jsx`.
-
-```
-FBT Orders                                            [Sync now]  [Export CSV]
-
-[Region ▾]  [Account ▾]  [Status ▾]  [Date range]  [Search…]
-
-┌──────────────┬──────────────┬─────────┬──────────┬──────────┬───────────┬────────────┐
-│ Order #      │ Date         │ SKUs    │ Total    │ Status   │ Tracking  │ Customer   │
-├──────────────┼──────────────┼─────────┼──────────┼──────────┼───────────┼────────────┤
-│ TK-12345     │ 12 May 09:14 │ 2 items │ £42.00   │ Shipped  │ AB123... ↗│ John Doe   │
-│ TK-12346     │ 12 May 09:30 │ 1 item  │ £15.00   │ Await…   │  —        │ Jane Smith │
-└──────────────┴──────────────┴─────────┴──────────┴──────────┴───────────┴────────────┘
-```
-
-Every row carries a small "Fulfilled by TikTok" badge.
-
-These same orders also appear in `/clients/order` (the central view) with the same badge. The FBT-specific page is a focused subset.
-
-**User actions:**
-- Click row → drawer with full detail, item list, customer address (masked per PII rules), TikTok-side fulfilment status timeline.
-- `[Sync now]` → on-demand poll (rate-limited).
-- `[Export CSV]` → current filtered set.
-
----
-
-### P2.1 — Inbound Shipments
-
-**Route:** `/clients/tiktok-fbt/inbound` (list) and `/clients/tiktok-fbt/inbound/[id]` (detail)
-**Phase:** 2
-**Purpose:** Plan, create, track inbound shipments to TikTok FCs.
-**Reuses:** `<TableContainer>` for the list, MUI Stepper for the wizard (built bespoke from existing form-section components).
-
-**List view layout:**
-
-```
-Inbound Shipments                                          [+ Create new]
-
-[Status ▾]  [Region ▾]  [Search shipment# or SKU…]
-
-Shipment #     Created      Destination   Units  Status            Tracking
-INB-2026-0001  10 May       FBT UK (LDN)  150    Shipped           AB123 ↗
-INB-2026-0002  11 May       FBT UK (MAN)   80    Submitted         —
-INB-2026-0003  12 May       FBT UK (LDN)  220    Draft             —
-```
-
-**Wizard (4 steps):**
-
-1. **Choose products & quantities.** Source warehouse dropdown (merchant's own warehouses from core WMS). Add-row interface for SKU + quantity. Validates `units_planned ≤ available stock in source warehouse`.
-
-2. **Choose destination FC.** Calls `GET /api/tiktok-fbt/accounts/{accountId}/fcs` (which proxies to TikTok's logistics endpoint). Merchant picks one, or "Let TikTok decide".
-
-3. **Review & submit.** Summary screen → `[Submit plan]` calls `POST /api/tiktok-fbt/inbound` → TikTok plan API → plan_id stored.
-
-4. **Print labels & ship.** Calls `GET /api/tiktok-fbt/inbound/{id}/label` → PDF link. Merchant inputs tracking number → `[Mark as shipped]` → status `in_transit`. Wizard exits to detail page.
-
-**Detail page:** header with status pill, line items table with `planned / shipped / received / damaged / short`, status timeline, webhook-driven real-time updates.
-
----
-
-### P3.1 — Fees & Reimbursements
-
-**Route:** `/clients/tiktok-fbt/fees`
-**Phase:** 3
-**Purpose:** Financial reconciliation.
-**Reuses:** MUI X Charts (bar chart), `<StatCard>`, custom table.
-
-```
-Fees & Reimbursements                                          [Export CSV]
-
-[Date range: Last 30 days ▾]  [Account ▾]  [Type ▾]
-
-┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
-│ Total fees │ Pick & Pack  │  Storage     │ Reimbursed   │
-│  £2,840    │   £1,720     │   £620       │   £312       │
-└────────────┘ └────────────┘ └────────────┘ └────────────┘
-
-[Bar chart: fees by type, by week]
-
-Fee history table — fee_type, sku, order, amount, status …
-Reimbursement claims table — reason, order, amount, status …
-Discrepancy alerts panel
-```
-
----
-
-## Workflow summaries
-
-**Connecting an FBT account:** merchant goes to `/clients/tiktok-fbt/accounts`, clicks `[+ Connect FBT account]`, picks region, completes OAuth in a popup, optionally links to an existing seller account. First inventory sync runs within 15 min; first orders sync within 5 min.
-
-**Checking stock:** Dashboard → reorder alert → click red SKU → land on Inventory filtered to that SKU → click `[Plan]` (Phase 2) → wizard pre-populates.
-
-**Receiving an FBT order:** Buyer places order on TikTok. TikTok webhook → tiktok-fbt-microservice. Service fetches full order, inserts into `fbt_orders`, publishes `tiktok_fbt.to.wms.order_created`. Core-service consumes, creates Order with `createdVia='tiktok_fbt'`, OrderFulfillment(`type='fbt'`, warehouse=virtual_fbt_uk). Virtual warehouse inventory deducts. **No picker is shown this order.** TikTok ships. Webhook `PACKAGE_UPDATE` arrives. Tracking number updates.
-
-**Reconciling fees (Phase 3):** 03:15 cron pulls statement, inserts rows into `fbt_fees`, publishes per-line `tiktok_fbt.to.wms.fee_incurred`, core-service inserts `marketplace_charges`. Merchant opens `/clients/tiktok-fbt/fees` and reviews.
-
----
-
-## Component reuse map
-
-| New screen | Reuses |
+| New page | Reuses existing |
 |---|---|
-| Dashboard | `<StatCard>`, MUI X LineChart, `<PageHeadingWithBreadcrumb>`, `<CounterCard>` |
-| FBT Accounts | `<AccountContainer>`, `<Card>`, `<AddAccountModal>` (cloned with FBT-specific OAuth target), `<EditAccountModal>` |
-| FBT Inventory | `<TableContainer>`, `<TableHeader>`, `<TableRow>`, `<TextFilter>`, `<OperatorFilter>`, `<OptionsSelector>`, `<BulkActionBar>`, `<PreviewableImage>` |
-| FBT Orders | Existing order table pattern + `<OrderStatusChip>` + new badge |
-| Inbound Wizard | MUI Stepper, form-section components from `create-product/`, `<ConfirmActionModal>`, `<RequiredAsterisk>` |
+| FBT Dashboard | `<StatCard>`, MUI X LineChart, `<PageHeadingWithBreadcrumb>` |
+| FBT Inventory | `<TableContainer>`, `<TextFilter>`, `<OperatorFilter>`, `<BulkActionBar>`, `<PreviewableImage>` |
+| Inbound list | `<TableContainer>` |
+| Inbound wizard | MUI Stepper + form-section components from `create-product/` |
+| Inbound detail | `<StatCard>`, `<Timeline>` (new tiny component), table primitives |
 | Fees | MUI X BarChart, `<StatCard>`, table primitives |
+| Webhook admin | `<TableContainer>` |
 
 **New components to build (3 total):**
 1. `<FbtHealthChip>` — green/amber/red pill with days-of-cover tooltip.
-2. `<FulfilledByTikTokBadge>` — appended to order rows. Trivial.
-3. `<InboundShipmentStepper>` — wizard container (Phase 2 only).
+2. `<FulfilledByTikTokBadge>` — small badge appended to order rows.
+3. `<FbtAccountToggle>` — the in-account-card toggle for enabling FBT.
+
+The wizard stepper component can be cobbled from MUI's Stepper without a new wrapper.
 
 ---
 
-## Auth / API gateway considerations
+## 8. Page count summary
 
-- Frontend axios client uses the same JWT (existing user session). No new auth.
-- Base URL pattern: `/api/tiktok-fbt/*` (gateway proxies to localhost:5018).
-- Same `X-Client-Id` header pattern as existing services.
-- Webhook endpoints (`/api/tiktok-fbt/webhooks`) are unauthenticated but verify HMAC signature via cloned `WebhookSignatureGuard`.
-
----
-
-## A11y & responsive
-
-- Keyboard-navigable tables (existing primitives support this).
-- Mobile: existing `<ResponsiveTableWrapper>` and `<MobileCardView>` apply.
-- Dark/light mode via `useThemeStore()` mode flag.
-
-No new design system work needed.
+| Pages | Count | Phase |
+|---|---|---|
+| Existing pages modified | 2 (Accounts — gains toggle; central Orders — adds SQL filter only, no visual change) | 1 |
+| New merchant-facing pages | 7 (Dashboard, Inventory, Orders, Inbound list, Inbound new, Inbound detail, Fees) | 1 (4 of them: Dashboard, Inventory, Orders, regression to central orders), 2 (3 of them: Inbound list/wizard/detail), 3 (1: Fees) |
+| New admin pages | 1 (Webhook events) | 1 |
+| **Total new routes added** | **8** | |

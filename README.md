@@ -1,214 +1,161 @@
 # TikTok FBT Integration Plan — WMS360
 
-**Status:** Planning · **Owner:** Mohammad Rabbani · **Created:** 2026-05-12 (revised after architecture pivot) · **Target Phase 1 launch:** 2026-07-17 (9 weeks out)
+**Status:** Planning · **Owner:** Mohammad Rabbani · **Architecture finalised:** 2026-05-12 · **Target Phase 1 launch:** 2026-06-13 (4 weeks out)
 
-> Fulfilled by TikTok (FBT) is TikTok Shop's marketplace-fulfilment programme. Merchant ships inventory to TikTok fulfilment centres → TikTok stores, picks, packs, ships orders → merchant only handles inbound, returns reconciliation, and stock replenishment. Conceptually identical to Amazon FBA.
+> Fulfilled by TikTok (FBT) is TikTok Shop's marketplace-fulfilment programme. Merchant ships inventory to TikTok fulfilment centres → TikTok stores, picks, packs, ships orders → merchant only handles inbound, returns reconciliation, and stock replenishment.
 
 ---
 
-## 1. Executive summary
+## 1. Final architecture (locked)
 
-**Decision matrix (locked in):**
-
-| Decision | Choice | Why it matters |
+| Decision | Choice | Rationale |
 |---|---|---|
-| Launch region | **UK first, US next** | Single currency + single FC network for v1. Region-aware code paths from day 1 so US drop-in is config, not code. |
-| Hybrid SKU support | **Yes — same SKU can be FBM + FBT simultaneously** | Inventory must split per fulfilment-mode. Drives `variation_listings` + per-warehouse-type inventory model in core WMS. |
-| MVP scope | **Phase 1: read-only mirror (4w) → Phase 2: inbound wizard (3w) → Phase 3: fees & returns (3w)** | Ship value early, validate TikTok FBT API quirks (rate limits, payload shapes, sandbox gaps) before heavy investment. |
-| Architecture | **Brand-new microservice `tiktok-fbt-microservice`. Existing `tiktok-microservice` is untouched.** | Some clients need both TikTok seller and TikTok FBT. Full isolation = zero regression risk on the live seller integration. Two services, two DBs, two gateway routes, two sidebar entries. |
-| Credentials model | **Independent OAuth per merchant. No shared accounts table.** | New service has its own `fbt_accounts` table. Optional soft reference `linked_seller_account_id` (no FK, no cross-DB join) lets the UI display "this FBT shop is the same TikTok shop as your seller connection X". |
-
-**End-state in one paragraph:** A brand-new `tiktok-fbt-microservice` (port 5018, DB `tiktok_fbt_microservice`, gateway route `/api/tiktok-fbt`) lives alongside the unchanged `tiktok-microservice`. Each merchant onboards a TikTok FBT shop independently of any seller connection they may already have. The new service polls FBT inventory every 15 min, pulls FBT orders every 5 min, exposes an inbound-shipment workflow, and emits RabbitMQ events under the `tiktok_fbt.*` topic family. Core-service learns one new channel slug (`tiktok_fbt`), one new warehouse type (`fbt_tiktok`), and one new fulfilment type on `OrderFulfillment` (`fbt`). FBT orders flow into the central WMS order list tagged "Fulfilled by TikTok" and **never enter any picker's queue**. The frontend gets a top-level sidebar entry "TikTok FBT" (sibling to existing "TikTok Shop"), with 6 new pages under `/clients/tiktok-fbt/*`.
-
----
-
-## 2. Plan structure (read in this order)
-
-1. **[01-architecture-and-alignment.md](./01-architecture-and-alignment.md)** — How the new microservice slots into the existing WMS architecture. Service boundaries, data flows, virtual-warehouse concept, hybrid-SKU inventory math.
-2. **[02-data-model-changes.md](./02-data-model-changes.md)** — Every schema change. **Zero changes to existing tiktok-microservice DB.** New tables in the new service DB. Modest additive changes to core WMS DB.
-3. **[03-api-research-checklist.md](./03-api-research-checklist.md)** — TikTok FBT endpoints to verify against current docs, sandbox onboarding plan, rate-limit budget, payload-shape unknowns to resolve before coding.
-4. **[04-pages-and-workflows.md](./04-pages-and-workflows.md)** — 6 new frontend pages, screen-by-screen workflows, component reuse map.
-5. **[05-phased-rollout.md](./05-phased-rollout.md)** — Week-by-week task breakdown for all 3 phases, including 1 extra week for service scaffolding.
-6. **[06-deployment-and-observability.md](./06-deployment-and-observability.md)** — Feature flags, env vars, RabbitMQ topology changes, logging/metrics, rollback plan.
-7. **[07-risks-and-open-questions.md](./07-risks-and-open-questions.md)** — What we don't know yet, blockers, decisions to escalate.
+| Where the code lives | **Inside the existing `D:\office porjects\tiktok-microservice` repo, in a new `src/modules/fbt/` submodule.** No new microservice. | One TikTok shop = one connection. FBT is a *capability* of that connection, not a separate service. |
+| Launch region | UK first, US next | Single currency + single FC network for v1 |
+| Hybrid SKU support | Yes — same SKU can be sold as FBM and FBT simultaneously | Inventory split via per-warehouse-type counts in core WMS |
+| Account model | **One row per shop in the existing `accounts` table.** FBT is enabled via a setting toggle on that account, gated by `fbt_enabled` boolean + `fbt_capabilities` JSONB + verification call to TikTok. | Mirrors how TikTok itself models FBT — a programme you enrol an existing shop in. |
+| Sidebar | **Three views under "TikTok Shop"**: General-only (today), FBT-only, or Hybrid — driven by per-account `fbm_enabled` / `fbt_enabled` flags aggregated across the client's accounts. | Conditional rendering keeps the sidebar tight for both directions: FBM-only merchants don't see FBT items, FBT-only merchants don't see seller listing items. |
+| Orders | **FBT orders live on a dedicated `/clients/tiktok/fbt/orders` page only.** The central `/clients/order` page is unchanged — it shows all other channels (eBay, Shopify, Amazon, TikTok seller, etc.) but never FBT. | FBT orders are read-only and need zero merchant action; they don't belong in the operational queue. Keeping them separate keeps the central page focused on orders that need attention. |
+| MVP scope | **Phase 1: read-only mirror (4w) → Phase 2: inbound wizard (3w) → Phase 3: fees & reimbursements (3w)** | Ship value early, validate TikTok FBT API quirks before heavy investment. |
 
 ---
 
-## 3. What we re-use vs what we clone vs what we build new
+## 2. End-state in one paragraph
 
-Because the new microservice is fully separate, we don't extend existing TikTok code in-place. We **clone tiktok-microservice as a starter template**, strip the seller-specific modules, and replace them with FBT modules. Some patterns are copy-once (acceptable); some are extracted to a shared lib (only if we end up with three+ TikTok-flavoured services).
-
-### Re-use directly (no copy)
-
-| Asset | Path | How we reuse it |
-|---|---|---|
-| RabbitMQ topic exchange `wms_multichannel` with DLX, retry queues, 24h TTL | `D:\office porjects\backend_wms_v2\core-service\rabbitmq\` | New routing keys on the existing exchange. No infra change. |
-| Gateway proxy + circuit breaker + health checks | `D:\office porjects\backend_wms_v2\gateway\` | Add one line in `load-balancer.js` registering `tiktok-fbt` service. No code in gateway itself. |
-| Core WMS DB + Sequelize models | `D:\office porjects\backend_wms_v2\core-service\` | New service reads `Variations`, `Catalogues`, `Channels` via the same read-only connection pattern the existing tiktok-microservice uses. |
-| Frontend component library (tables, filters, BulkActionBar, StatCard, sidebar pattern) | `D:\office porjects\frontend_wms_v\src\components\` | All new FBT pages built from these. No new design system work. |
-| Amazon FBA inventory snapshot pattern (multi-version, `is_latest`, velocity, days-of-cover) | `D:\office porjects\amazon-microservice\src\amazon\fba-inventory\` | Read for design inspiration. Copy structure, write fresh in new service. |
-
-### Clone-and-adapt from existing tiktok-microservice (one-time copy at scaffolding)
-
-These are patterns we re-implement in the new service so we don't depend on the old one being available. Cost: code duplication. Benefit: full isolation.
-
-| Pattern | Where it lives today | What we clone |
-|---|---|---|
-| NestJS project shell (modules, main.ts, swagger setup) | `tiktok-microservice/src/` | Copy whole repo as starter, then prune |
-| OAuth flow + state mgmt | `tiktok-microservice/src/modules/tiktok-auth/` | Copy, repoint redirect URI, rename to `fbt-auth` |
-| AES-256-GCM token encryption util | `tiktok-microservice/src/common/utils/token-encryption.util.ts` | Verbatim copy. Same algorithm, same key-derivation logic. |
-| HMAC request signing | `tiktok-microservice/src/common/services/tiktok-api.service.ts` (lines ~87–110) | Copy core signing function. TikTok's auth algorithm doesn't differ for FBT. |
-| Token refresh cron | `tiktok-microservice/src/common/services/token-refresh-cron.service.ts` | Copy, scope to fbt_accounts |
-| Webhook signature guard | `tiktok-microservice/src/common/guards/webhook-signature.guard.ts` | Verbatim copy. |
-| RabbitMQ producer / consumer scaffolding | `tiktok-microservice/src/integrations/rabbitmq/` | Verbatim copy. Same exchange, same DLX. |
-| Multi-tenant `client_id` filtering pattern | throughout tiktok-microservice | Same pattern in new service. |
-
-### Build new in the new service
-
-| Module | Phase |
-|---|---|
-| `fbt-accounts` (separate from seller accounts) | 1 |
-| `fbt-orders` | 1 |
-| `fbt-products` (FBT-eligible listings) | 1 |
-| `fbt-inventory` + 15-min cron | 1 |
-| `fbt-webhooks` (FBT-specific event types if TikTok publishes them) | 1 |
-| `fbt-inbound` | 2 |
-| `fbt-fees` (statement ingestion) | 3 |
-| `fbt-returns` (sync from TikTok) | 3 |
+The existing `tiktok-microservice` (port 5011) gains a new `src/modules/fbt/` directory containing FBT-specific modules: inventory polling, inbound shipments, fees ingestion, dashboard aggregation. The existing `accounts` entity gains a few FBT-aware columns; existing `tiktok_orders` gains a `fulfilment_mode` column. FBT-only data (inventory snapshots, inbound shipments, fees) lives in **new tables in the same database** prefixed `fbt_*`. RabbitMQ uses a new `tiktok_fbt.*` routing-key family (disjoint from existing `tiktok.*`) so core-service can distinguish events. Core-service learns a new channel slug (`tiktok_fbt`), a new warehouse type (`fbt_tiktok`), and a new fulfilment type (`fbt`) on `order_fulfillments`. The merchant sees FBT submenus appear under "TikTok Shop" the moment they flip the "Enable FBT" toggle on any account card.
 
 ---
 
-## 4. New artefacts we are creating
+## 3. Plan structure (read in this order)
 
-### New microservice: `tiktok-fbt-microservice`
-
-| Resource | Value |
-|---|---|
-| Repo path | `D:\office porjects\tiktok-fbt-microservice` |
-| Port | **5018** (verify against latest port allocation — Amazon may use 5014) |
-| Database | `tiktok_fbt_microservice` (PostgreSQL, local credentials per existing memory) |
-| Gateway route | `/api/tiktok-fbt` → `http://localhost:5018/api` |
-| OAuth redirect URI | `http://localhost:5018/api/fbt-auth/callback` (dev), production set per env |
-| TikTok app credentials | **Open question — see [03-api-research-checklist.md](./03-api-research-checklist.md) §1** for whether to register a separate TikTok app or reuse existing seller app credentials |
-
-### New tables in `tiktok_fbt_microservice` DB
-
-- `fbt_accounts`
-- `fbt_orders` + `fbt_order_items`
-- `fbt_products` + `fbt_product_variations`
-- `fbt_inventory` (snapshot pattern, multi-version)
-- `fbt_inbound_shipments` + `fbt_inbound_shipment_items` (Phase 2)
-- `fbt_fees` (Phase 3)
-- `fbt_returns` (Phase 3)
-- `fbt_activity_logs`
-- `fbt_webhook_events` (idempotency log)
-
-All DDL in [02-data-model-changes.md](./02-data-model-changes.md).
-
-### Additive changes to core WMS DB
-
-These are the **only** changes to existing infrastructure. All additive — no destructive operations.
-
-- New channel row: `Channel(channelSlug='tiktok_fbt', name='TikTok FBT')`.
-- `warehouses` gains `warehouse_type`, `external_marketplace`, `external_warehouse_id`, `external_account_id`, `external_region`, `external_warehouse_config` columns.
-- `order_fulfillments.fulfillment_type` already STRING(20) — new value `'fbt'` added by convention (no enum migration; existing column accepts any string).
-- New tables: `variation_listings`, `inbound_shipments` + items (Phase 2), `marketplace_charges` (Phase 3), `marketplace_reimbursements` (Phase 3).
-- `return_requests` gains marketplace metadata columns (Phase 3).
-
-### Frontend additions
-
-- New top-level sidebar entry **"TikTok FBT"** (sibling to existing "TikTok Shop"), gated by feature flag `tiktok_fbt`.
-- New pages directory: `src/pages/clients/tiktok-fbt/` (sibling to existing `src/pages/clients/tiktok/`).
-- New service file: `src/services/TiktokFbtService.js` (sibling to existing `TiktokService.js`).
-- New Zustand store directory: `src/stores/tiktok-fbt/`.
-
-### RabbitMQ routing keys (new topic family, on existing exchange)
-
-- `tiktok_fbt.to.wms.inventory_synced` (Phase 1)
-- `tiktok_fbt.to.wms.order_created` (Phase 1)
-- `tiktok_fbt.to.wms.order_status_changed` (Phase 1)
-- `tiktok_fbt.to.wms.inbound_status_changed` (Phase 2)
-- `tiktok_fbt.to.wms.return_received` (Phase 3)
-- `tiktok_fbt.to.wms.fee_incurred` (Phase 3)
-- `tiktok_fbt.to.wms.reimbursement_received` (Phase 3)
-- `wms.to.tiktok_fbt.inbound_create` (Phase 2)
-- `wms.to.tiktok_fbt.inbound_confirm` (Phase 2)
-- `wms.to.tiktok_fbt.dispute_submit` (Phase 3)
-
-### Cron jobs (in the new service)
-
-- FBT inventory sync — every 15 min
-- FBT orders sync — every 5 min (defence in depth alongside webhooks)
-- FBT token refresh — at minute 5 and 35 of every hour (cloned from existing service)
-- Inbound shipment status poll — every 30 min (Phase 2)
-- Statement ingestion — daily 03:15 UTC (Phase 3)
+1. **[01-architecture-and-alignment.md](./01-architecture-and-alignment.md)** — how the new `fbt/` submodule plugs in; conditional sidebar logic.
+2. **[02-data-model-changes.md](./02-data-model-changes.md)** — additive columns on existing tables + new `fbt_*` tables in the same DB; core WMS DB changes too.
+3. **[03-api-research-checklist.md](./03-api-research-checklist.md)** — TikTok FBT endpoints to verify in sandbox.
+4. **[04-pages-and-workflows.md](./04-pages-and-workflows.md)** — pages that change (Accounts) and pages that get added.
+5. **[05-phased-rollout.md](./05-phased-rollout.md)** — week-by-week task breakdown. No "Phase 0 scaffolding" anymore.
+6. **[06-deployment-and-observability.md](./06-deployment-and-observability.md)** — env vars added to existing service, migrations, RabbitMQ routing keys, rollback.
+7. **[07-risks-and-open-questions.md](./07-risks-and-open-questions.md)** — what we don't know yet.
+8. **[08-ui-lifecycle-mockups.md](./08-ui-lifecycle-mockups.md)** — ASCII mockups for every screen state.
+9. **[09-folder-structure.md](./09-folder-structure.md)** — before/after layout of `tiktok-microservice/src/` showing every file added or extended.
+10. **`mockup.html`** — open in a browser for the full visual lifecycle.
 
 ---
 
-## 5. Hard alignment principles (must not break)
+## 4. What stays the same (existing service guarantees)
 
-Non-negotiable. Every PR for this initiative must respect them:
-
-1. **Zero changes to `tiktok-microservice` repo or `tiktok_microservice` DB.** If a PR touches either, it does not belong in this initiative.
-2. **No bypass of core-service.** All cross-marketplace state (orders, inventory, financials) lives in WMS DB. The new service writes its own caches; the **source of truth** for "what is fulfillable, what is owed" is core-service.
-3. **Hybrid SKU is the default model.** Same SKU can be FBM (sold via seller integration) AND FBT (sold via new integration). Inventory is split through `variation_listings` + per-warehouse inventory.
-4. **FBT orders skip pick/pack.** When core-service consumes a `tiktok_fbt.to.wms.order_created` message, it creates an `OrderFulfillment` row with `fulfillment_type='fbt'`. Status flows: `received → fulfilled_by_tiktok → shipped → delivered`. Pickers never see these orders.
-5. **Read-only mirror first (Phase 1).** Phase 1 ships zero outbound API writes to TikTok FBT. We only read state. Validates API quirks before write-side blast radius.
-6. **Region-aware from day 1.** Every code path takes `region` ∈ `{GB, US}`. UK ships first; US is a config flag, not a refactor.
-7. **Feature flag per merchant.** `tiktok_fbt` feature key gates every page and every route. Same pattern as `checkPackageFeature` middleware in core-service.
-8. **TikTok is the source of truth for FBT inventory.** WMS never writes FBT stock counts directly — it only mirrors what TikTok reports. The 15-min refresh lag is documented to merchants and surfaced in the UI.
-9. **Reimbursement reconciliation is eventually-consistent.** Statement reports arrive on TikTok's own cadence (usually daily/weekly). Reconciliation pipeline matches charges/credits async; never block order display on financials.
-10. **All TikTok API calls go through the new service's `tiktok-fbt-api.service.ts`** (the cloned-and-adapted descendant of the existing `tiktok-api.service.ts`). No direct axios anywhere else in the new repo.
+- Existing `accounts` table, seller OAuth, seller order sync, seller inventory push to TikTok — **untouched at the behavioural level**. The only column additions to `accounts` are `fbt_enabled`, `fbt_capabilities`, `fbt_enabled_at`, `fbt_last_verified_at`; defaults keep existing rows behaving identically.
+- Existing modules (`accounts/`, `orders/`, `products/`, `inventory/`, `webhooks/`, `tiktok-auth/`) keep working. Two of them (`orders/`, `webhooks/`) get small extensions to route FBT events to the new submodule.
+- Existing port (5011), existing DB (`tiktok_microservice`), existing RabbitMQ exchange (`wms_multichannel`). No infra changes.
+- Existing TikTok app credentials reused. FBT scopes added to the existing app's permission set — no separate app registration unless TikTok forces it.
 
 ---
 
-## 6. Top 6 risks (read [07-risks-and-open-questions.md](./07-risks-and-open-questions.md) for full list)
+## 5. What gets added
 
-1. **No TikTok FBT seller account yet.** Sandbox onboarding is the critical path for week 1. → Apply for TikTok FBT seller programme + dev sandbox **week 1, day 1**.
-2. **TikTok FBT API surface is less documented than seller API.** → Allocate week 1 to live-testing every endpoint in sandbox before committing to schema.
-3. **15-min inventory lag means oversell risk.** A unit can sell on TikTok before our sync runs. → Make UI display lag prominently; consider event-driven webhook for stock decrement if TikTok publishes one.
-4. **48-hour dispatch SLA is TikTok's responsibility, but merchant gets the blame for stockouts.** → Reorder alerts in Phase 1 dashboard must be loud (red banner + email).
-5. **Code drift between tiktok-microservice and tiktok-fbt-microservice.** The cloned auth, signing, and token-refresh code may diverge over time. → If a third TikTok-flavoured service ever appears (TikTok Live Shopping?), extract a shared lib then; for two services this is acceptable duplication. Document the cloned files in [07](./07-risks-and-open-questions.md) so reviewers know to keep both in sync for security fixes.
-6. **TikTok app registration.** Need to confirm whether one TikTok app can serve both seller and FBT integrations, or whether we register a separate app. → Research item, week 1 day 1. See [03-api-research-checklist.md](./03-api-research-checklist.md).
+### Backend (inside `tiktok-microservice`)
 
----
+- New `src/modules/fbt/` directory tree (full layout in [09-folder-structure.md](./09-folder-structure.md))
+- New entities: `fbt_inventory`, `fbt_webhook_events`, `fbt_inbound_shipments` + items (Phase 2), `fbt_fees` (Phase 3), `fbt_returns` (Phase 3)
+- New columns on `accounts`: `fbm_enabled` (default TRUE, merchant-facing), `fbt_enabled` (default FALSE, merchant-facing), `publish_fbt_to_wms` (default TRUE, **admin-only operational kill-switch** — pattern borrowed from Amazon FBA's `publish_fba_to_wms`), `fbt_capabilities`, `fbt_enabled_at`, `fbt_last_verified_at`, `fbt_last_inventory_sync_at`, `fbt_last_order_sync_at`. DB constraint `chk_accounts_any_mode` guarantees at least one fulfilment mode is enabled per row.
+- New column on `tiktok_orders`: `fulfilment_mode ('fbm' | 'fbt')`
+- New cron jobs: FBT inventory sync (15min), FBT inbound status poll (30min, Phase 2), FBT statement ingestion (daily 03:15, Phase 3)
+- New RabbitMQ routing keys (same exchange): `tiktok_fbt.to.wms.*` and `wms.to.tiktok_fbt.*`
+- Two new endpoints on existing accounts controller: `POST /accounts/:id/fbt/enable`, `POST /accounts/:id/fbt/disable`
 
-## 7. Definition of done (Phase 1)
+### Core WMS (additive only)
 
-Phase 1 ships when **all** of the following are true:
+- New channel row: `Channel(channelSlug='tiktok_fbt')`
+- New columns on `warehouses`: `warehouse_type`, `external_marketplace`, `external_warehouse_id`, `external_account_id`
+- New `variation_listings` table (the hybrid-SKU bridge)
+- New tables: `inbound_shipments` + items (Phase 2), `marketplace_charges` + `marketplace_reimbursements` (Phase 3)
+- `order_fulfillments.fulfillment_type` accepts new value `'fbt'` (column is permissive string)
+- Feature flag `tiktok_fbt` via existing `checkPackageFeature` middleware
 
-- [ ] `tiktok-fbt-microservice` is running in production on port 5018 with its own DB.
-- [ ] Gateway routes `/api/tiktok-fbt/*` correctly with circuit-breaker active.
-- [ ] A merchant can connect a TikTok FBT account from `/clients/tiktok-fbt/accounts`. Independent OAuth, independent token storage.
-- [ ] Existing TikTok seller integration is verified unchanged — full regression pass on seller order sync, inventory sync, product listing.
-- [ ] FBT inventory is polled every 15 min and visible at `/clients/tiktok-fbt/inventory` with: fulfillable, inbound, reserved, unfulfillable, days-of-cover, last-synced timestamp.
-- [ ] FBT orders flow into core-service via `tiktok_fbt.to.wms.order_created`, appear in the central orders list tagged "Fulfilled by TikTok" (via `createdVia='tiktok_fbt'`), and **do not** appear in any picker's queue.
-- [ ] FBT orders show tracking number (from TikTok) without merchant action.
-- [ ] Reorder alert fires when FBT days-of-cover < 14 (red), < 30 (amber), surfaces in dashboard tile.
-- [ ] Feature flag `tiktok_fbt` correctly gates all UI and API access per merchant.
-- [ ] Sentry/Winston logs distinguish FBT vs seller via the service name in log lines (no shared service → no risk of ambiguity).
-- [ ] Smoke test: a single merchant with **both** a TikTok seller account AND a TikTok FBT account — both work, independently, no cross-contamination.
+### Frontend (inside `frontend_wms_v`)
 
----
-
-## 8. Out of scope (explicitly)
-
-- Multi-warehouse FBT (TikTok routing across multiple FCs) — TikTok handles internally.
-- TikTok Live Shopping fulfilment integration — separate surface.
-- Cross-border FBT (UK seller selling US FBT) — Phase 3+, requires VAT + customs work.
-- Bulk listing creation directly to FBT (vs reusing existing seller listings) — Phase 2 only if needed.
-- Migration of historical TikTok seller orders to FBT analytics — separate ticket.
-- Merging or auto-linking of merchant's seller account with their FBT account — surfaces a manual "is this the same TikTok shop?" UI link in the FBT account card; no auto-link.
-- Shared lib for the cloned auth/signing code — defer until 3rd TikTok service exists.
+- **7 new merchant-facing pages** under `/clients/tiktok/fbt/*` (Dashboard, Orders, Inventory, Inbound list, Inbound new, Inbound detail, Fees)
+- 1 new admin-only page: `/clients/tiktok/fbt/admin/webhooks`
+- Existing Accounts page gains a "Fulfilment modes" panel per account card with **two independent toggles** (FBM + FBT), each with its own settings sub-panel
+- Existing TikTok Shop sidebar entry renders one of three views (General-only · FBT-only · Hybrid) based on aggregated per-account flags
+- Existing central `/clients/order` page is **UNCHANGED** — FBT orders are filtered out of this view entirely (via `WHERE created_via != 'tiktok_fbt'`)
+- New `TiktokFbtService.js` for FBT-specific API calls
 
 ---
 
-## 9. Quick links
+## 6. Hard alignment principles (non-negotiable)
 
-- TikTok Shop FBT seller documentation entry point: https://seller-us.tiktok.com/university/essay?knowledge_id=8644984183162670&lang=en
-- Existing TikTok microservice (DO NOT MODIFY): `D:\office porjects\tiktok-microservice`
-- New TikTok FBT microservice (TO BE CREATED): `D:\office porjects\tiktok-fbt-microservice`
+1. **No new microservice, no new database.** Everything lives in the existing `tiktok-microservice` and its existing DB.
+2. **No bypass of core-service.** Cross-channel state lives in WMS DB. Source of truth is core-service.
+3. **Hybrid SKU is the default.** Same SKU can have an FBM listing AND an FBT listing. Per-warehouse inventory split via `variation_listings`.
+4. **FBT orders skip pick/pack.** Core-service creates `order_fulfillments` row with `fulfillment_type='fbt'`. Picker queries filter on this.
+5. **One TikTok shop = one accounts row.** Enabling FBT is a capability toggle, not a second row.
+6. **Conditional sidebar — three views.** The "TikTok Shop" parent renders one of: General-only (today), FBT-only, or Hybrid. General sub-items appear if any account has `fbm_enabled = true` (or any historical FBM orders remain); FBT sub-items appear if any account has `fbt_enabled = true`. The "Accounts" entry is always present, because that's where both toggles live.
+7. **Two separate order surfaces.** TikTok seller orders + every other channel land on the central `/clients/order` page like today. **FBT orders never appear on the central page.** They live exclusively on the dedicated `/clients/tiktok/fbt/orders` page. The merchant looks at whichever page matches their intent: actionable vs FBT-status.
+8. **TikTok is the source of truth for FBT inventory.** WMS only mirrors via 15-min poll. UI surfaces the lag.
+9. **All TikTok API calls go through existing `common/services/tiktok-api.service.ts`.** No new HTTP client.
+10. **Phase 1 ships zero outbound writes to TikTok FBT.** Read-only mirror only.
+
+---
+
+## 7. Top 6 risks
+
+1. **No TikTok FBT seller account yet.** Critical path. Apply for FBT enrollment on Seller Center week-1 day-1.
+2. **API documentation gaps.** Week 1 dedicated to live-testing sandbox endpoints before schema lock.
+3. **15-min inventory lag → oversell risk.** Mitigated by optimistic decrement on webhook + UI lag surfacing.
+4. **Reorder alert UX must be loud.** Red banner + dashboard tile + email when days-of-cover < 14.
+5. **Existing TikTok app scope coverage.** Does it cover FBT endpoints, or does TikTok require a separate app? Research item.
+6. **Conditional sidebar rendering bug class.** Test matrix expanded to cover three views: 0 accounts; 1 FBM-only; 1 FBT-only (with and without historical FBM orders); 1 hybrid; mixed accounts (FBM-only + FBT-only on the same client); transitions (toggle FBT on/off, toggle FBM off/on) and verify sidebar reshapes in one tick.
+
+---
+
+## 8. Definition of done (Phase 1)
+
+- [ ] `tiktok-microservice` deployed with `fbt/` submodule. Existing seller flows regression-tested.
+- [ ] Merchant can click "Enable FBT" on an account card; verification call confirms eligibility; toggle either succeeds or shows clear "not enrolled" error.
+- [ ] Sidebar conditionally shows FBT sub-group based on `fbt_enabled` count.
+- [ ] FBT inventory polled every 15 min, visible at `/clients/tiktok/fbt/inventory`.
+- [ ] FBT orders appear on the dedicated `/clients/tiktok/fbt/orders` page only. **They do NOT appear on the central `/clients/order` page.** They never appear in the picker queue.
+- [ ] FBT orders show TikTok-supplied tracking without merchant action.
+- [ ] Reorder alert fires when days-of-cover < 14 (red), < 30 (amber).
+- [ ] Feature flag `tiktok_fbt` gates all FBT routes per merchant.
+- [ ] Smoke test: one merchant with seller + FBT enabled on same TikTok shop, both work, no cross-contamination.
+- [ ] **Fail-closed publisher regression:** flip `accounts.publish_fbt_to_wms=false` via SQL, place a sandbox FBT order, confirm zero `tiktok_fbt.*` messages emitted and `fbt_publish_skipped_total{reason='publish_gate_off'}` counter increments.
+- [ ] **`canPublishFbt()` spec passes** all enumerated cases in `06-deployment-and-observability.md` §12 (null/undefined/string-coerced/numeric-coerced inputs all return false).
+- [ ] **Open question C1 resolved before any Accounts-page toggle work begins:** eligibility verification endpoint shape captured in `endpoint-payloads.md`; if endpoint absent, fallback path chosen and documented in `fbt-accounts.README.md`.
+
+---
+
+## 9. Alignment with Amazon FBA (lessons folded in)
+
+This plan was reviewed against the existing `amazon-microservice` FBA implementation on 2026-05-12. The two integrations are ~80% structurally aligned (both are submodules inside the marketplace service; both use the snapshot-inventory pattern; both publish to the `wms_multichannel` exchange). We adopted three concrete patterns from Amazon and improved on three others:
+
+**Adopted from Amazon:**
+- **Snapshot inventory with `is_latest` flag** — append-only history, never upsert (see `amazon-fba-inventory.entity.ts` lines 106–109; mirrored in our `fbt_inventory` DDL §A3).
+- **Pre-compute velocity at snapshot time** — `units_sold_7d`, `units_sold_30d`, `velocity_per_day`, `days_of_cover` stored on the row, not derived at query time.
+- **`publish_*_to_wms` operational kill-switch** — admin-only column, separate from user-facing capability flag. Amazon's `LESSONS.md` line 6 records a fail-open guard bug that leaked **421 FBA orders** into the picker queue. Our `publish_fbt_to_wms` + canonical `canPublishFbt()` guard + required spec table closes the same bug class on day one.
+
+**Improved over Amazon:**
+- **Strict `fulfilment_mode` enum + CHECK constraint** vs Amazon's plain-text `fulfillment_channel` — routing code can't silently swallow a typo.
+- **Split RabbitMQ routing keys** (`tiktok_fbt.to.wms.*` distinct from `tiktok.to.wms.*`) vs Amazon's single `amazon.to.wms.*` namespace — per-mode observability and per-mode consumer scaling.
+- **Explicit Enable-FBT verification flow** with eligibility API call vs Amazon's admin-only flag toggle — better merchant UX (modal + clear error states), at the cost of a single open question (C1) about whether TikTok actually exposes an eligibility endpoint.
+
+---
+
+## 10. Out of scope (explicitly)
+
+- Multi-warehouse FBT (TikTok routing across FCs — TikTok handles internally).
+- TikTok Live Shopping fulfilment integration.
+- Cross-border FBT (UK seller selling US FBT) — Phase 3+.
+- Bulk creation of FBT-only listings.
+- Merchant-facing public API for FBT data.
+
+---
+
+## 11. Quick links
+
+- Existing service to modify: `D:\office porjects\tiktok-microservice`
+- This planning workspace: `D:\office porjects\tiktok-fbt-microservice` (planning artefacts only — code goes in the line above)
 - Core-service: `D:\office porjects\backend_wms_v2\core-service`
 - Gateway: `D:\office porjects\backend_wms_v2\gateway`
 - Frontend: `D:\office porjects\frontend_wms_v`
-- Amazon FBA reference impl: `D:\office porjects\amazon-microservice\src\amazon\fba-inventory\`
+- TikTok FBT UK reference: https://seller-uk.tiktok.com/university/essay?knowledge_id=7753849801213697&default_language=en-GB
