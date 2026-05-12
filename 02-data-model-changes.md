@@ -36,6 +36,8 @@ CREATE INDEX idx_accounts_fbm_enabled
 
 **No backfill needed** — existing rows default to `fbm_enabled = true`, `fbt_enabled = false`, `publish_fbt_to_wms = true`. The `chk_accounts_any_mode` constraint guarantees we never end up with an account that can do neither fulfilment mode.
 
+**`fbt_capabilities` JSONB content** — populated by the eligibility probe (see `07-risks-and-open-questions.md` §A0 "probe pattern"). Whatever shop-level metadata TikTok includes in the FBT inventory response envelope lands here verbatim. May be `{}` (empty object) if TikTok exposes no extra metadata — the empty object still proves the shop responded successfully to an FBT call, which is the only fact we need to gate the toggle. Frontend reads this for the "Capabilities" line on the account card; if empty, that line collapses to a single "FBT enabled" pill.
+
 **`publish_fbt_to_wms` semantics:**
 - Default `TRUE`. Merchants never see this column.
 - Flipped to `FALSE` only by engineers — there is no UI control. The intended access path is a SQL update or a future admin tool.

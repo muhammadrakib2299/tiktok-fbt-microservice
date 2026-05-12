@@ -153,10 +153,19 @@ Even if a merchant pokes at the URL directly, they get a clean 403 unless they h
 
 3. accounts.service.enableFbt(accountId):
    a. Verify account belongs to this clientId (multi-tenant guard).
-   b. Call FbtAccountsService.verifyShopEligibility(account):
-        → tiktok-api.service.get('/authorization/202309/shops', accountId)
-        → parse response for FBT capability flags
+   b. Call FbtAccountsService.verifyShopEligibility(account) — **probe pattern**:
+        → tiktok-api.service.post('/fbt/.../inventory', { shop_id, limit: 1 }, accountId)
+        → inspect TikTok envelope { code, data, message, request_id }:
+            • HTTP 200 + envelope code=0     → eligible, capabilities = any shop
+                                                metadata in data (else empty object)
+            • HTTP 200 + code≠0 + "not-enrolled" error code → NOT eligible
+            • HTTP 200 + code≠0 + other code → throw 502 (unknown response, log)
+            • HTTP 4xx                        → throw 403 (auth/permission issue)
+            • HTTP 5xx / network              → throw 503 (retryable)
         → returns { eligible: true|false, capabilities: {...} }
+        → discards the inventory rows from the response body — this call is a
+          probe, not an inventory sync. The first real sync happens via the
+          15-min cron, after we flip fbt_enabled.
    c. If NOT eligible:
         → throw 400 "Shop not enrolled in FBT — apply at <TikTok URL>"
         → frontend shows toast with link

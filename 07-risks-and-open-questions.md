@@ -6,28 +6,57 @@
 
 ## A. Critical risks (could block or delay shipping)
 
-### A0. Eligibility verification endpoint may not exist as designed — **WEEK-1 DAY-1 BLOCKER**
+### A0. Eligibility verification endpoint — **RESOLVED 2026-05-12 via probe pattern**
 
-**Risk:** The entire Enable-FBT toggle UX is built on the assumption that `GET /authorization/202309/shops` (or some equivalent TikTok endpoint) returns a per-shop FBT enrollment flag we can read. If it doesn't, every downstream design choice that depends on the verification flow needs to change: the modal copy, the error toast, the activity-log entry, the capability JSONB shape, and the merchant's mental model of "click toggle → instant green tick."
+**Original risk:** the Enable-FBT flow assumed `GET /authorization/202309/shops` exposed a per-shop FBT enrollment flag. It does not — that endpoint only returns `id` and `region` per authorized shop. Verified by live response inspection on 2026-05-12:
 
-**Why this is now A0:** previously parked as open question #10. Re-ranked after the Amazon FBA review (2026-05-12) — Amazon never built an Enable-FBA verification flow precisely because SP-API didn't expose it cleanly. We are assuming TikTok will. Until we've seen a real successful response with a real FBT-enrolled shop ID, the entire flow is speculative. No frontend work for the Accounts page toggle should begin until this is resolved — otherwise we ship a modal that calls an endpoint that returns the wrong shape and silently degrades.
+```json
+{
+  "code": 0,
+  "data": { "shops": [ { "id": "36123502970007", "region": "GB" } ] },
+  "message": "Success",
+  "request_id": "..."
+}
+```
 
-**Impact if assumption is wrong:**
-- If no eligibility endpoint exists at all → fall back to "trust the merchant" pattern: optimistic flip, mark `fbt_last_verified_at = NULL`, then validate on the first inventory poll. If the poll 4xx's, auto-disable + activity log + email merchant. Less elegant, still workable.
-- If the endpoint exists but returns a different shape → adjust `fbt_capabilities` JSONB schema + verification service parser. Minor.
-- If the endpoint exists but requires a different scope than what the existing app has → blocks until app review (compounds with risk A3).
+There is no `fbt_enrolled`, `capabilities`, or `fulfillment_programs` field. The endpoint name was misleading — "authorization/shops" returns "which shops authorized this app", not "this shop's authorization details".
 
-**Mitigation — must complete before Phase 1 week 1 day 2:**
-- Week 1 day 1 morning: call `GET /authorization/202309/shops` against a sandbox or real FBT-enrolled shop. Capture full response JSON.
-- Confirm presence of any field resembling `fbt_enrolled`, `fbt_capabilities`, `fulfillment_programs[]`, or similar.
-- If absent, grep TikTok's seller-API docs for `fbt`, `fulfilled`, `enrollment`, `program` and try alternative endpoints (`/fulfillment/`, `/seller/programs/`, `/shop/capabilities/`).
-- If still absent, decide between fallback options before any controller code is written:
-  - (a) trust-the-merchant + post-hoc validation on first poll
-  - (b) require the merchant to paste their FBT shop ID into a confirmation text input (manual, not great UX)
-  - (c) park the toggle behind an admin-only enable until TikTok exposes the endpoint
-- Document the chosen path in the `fbt-accounts/` module README so future readers know why.
+**Resolution: probe pattern.** Instead of reading a metadata flag, `verifyShopEligibility()` makes a minimal, cheap call to an actual FBT endpoint and infers enrollment from the response. Confirmed available: **FBT inventory endpoint** (per Mohammad's docs check, 2026-05-12).
 
-**Owner:** Mohammad. **Status:** OPEN.
+**Verification algorithm** (probe semantics — same UX externally as the original design):
+
+```
+1. POST to FBT inventory endpoint with shop_id=<account.shop_id>, limit=1.
+2. Inspect response. TikTok wraps every response in an envelope
+   { code, data, message, request_id } — code=0 means success.
+
+   HTTP 200 + envelope code=0      → ENROLLED.
+                                     Store any returned shop metadata in
+                                     fbt_capabilities JSONB.
+                                     Set fbt_enabled = true,
+                                         fbt_last_verified_at = NOW().
+
+   HTTP 200 + code≠0 with a        → NOT ENROLLED.
+   "not enrolled"-class error        Show "apply on Seller Center" toast.
+
+   HTTP 200 + code≠0 with other    → UNKNOWN.
+   error code                        Generic error toast, do NOT flip flag,
+                                     log for triage.
+
+   HTTP 4xx                         → AUTH/PERMISSION ISSUE.
+                                     "Permission issue, contact support" toast.
+
+   HTTP 5xx / network               → TIKTOK DOWN / RETRYABLE.
+                                     "Try again in a moment" toast, no flag flip.
+```
+
+**Why this works:** the probe is the cheapest possible call (`limit=1`), takes one round-trip, and asks the only authoritative source — TikTok — by *trying to use* FBT. Any answer other than "200 + code=0" means "not currently usable", which is functionally what we needed to know. We never store the inventory rows from this probe; we discard the response body after reading the envelope.
+
+**Trade-off accepted:** we lose the ability to pre-populate a rich capabilities summary (regions covered, sub-features) on the modal success path unless TikTok's inventory response carries shop-level metadata. If it doesn't, the success state shows "FBT enabled — first inventory sync starting" instead of the per-capability bullet list we mocked. Acceptable: the merchant needs confirmation, not a feature inventory.
+
+**Still required before production:** one real successful probe against the sandbox FBT shop (once provisioned per risk A1). The probe's exact request path, payload shape, and the specific TikTok error-code values for "not enrolled" must be captured in `fbt-accounts/fbt-accounts.README.md`. Until then we build against the documented FBT inventory contract.
+
+**Owner:** Mohammad. **Status:** RESOLVED (verification mechanic), pending sandbox-side smoke test for the exact error-code mapping.
 
 ---
 
@@ -58,16 +87,18 @@
 
 ---
 
-### A3. Existing TikTok app scope coverage
+### A3. Existing TikTok app scope coverage — **RESOLVED 2026-05-12**
 
-**Risk:** The existing TikTok app's OAuth scope grant may not cover FBT endpoints. TikTok may require either: (a) adding FBT scopes to the existing app's permission set, or (b) registering a brand-new app dedicated to FBT.
+**Outcome:** The existing TikTok app already carries FBT API permissions. No second app registration needed, no new credential model. The plan's "reuse existing credentials" assumption holds. Verified by Mohammad via TikTok Partner Center scope inspection.
 
-**Impact:** If (b), we add an `fbt_app_key` / `fbt_app_secret` to environment + accounts table. Modest extra work but invalidates the "reuse credentials" advantage.
+**Implication for the plan:**
+- No changes to `.env` shape — same `TIKTOK_APP_KEY` / `TIKTOK_APP_SECRET` cover both seller and FBT endpoints.
+- No changes to the OAuth flow in `tiktok-microservice/src/modules/tiktok-auth/`.
+- `verifyShopEligibility()` in `fbt-accounts.service.ts` can call FBT endpoints using the existing per-account access token without scope upgrade.
 
-**Mitigation:**
-- Week 1 day 1: log into TikTok Partner Center and inspect the existing app's available scopes.
-- If FBT scopes are visible, add to existing app and submit for review.
-- If not, register a second app and store credentials separately.
+(Original risk text retained below for audit trail.)
+
+> ~~The existing TikTok app's OAuth scope grant may not cover FBT endpoints. TikTok may require either: (a) adding FBT scopes to the existing app's permission set, or (b) registering a brand-new app dedicated to FBT.~~
 
 ---
 
@@ -154,9 +185,9 @@
 
 ### Must answer before any FBT-side code is written (day 1)
 
-1. **Eligibility verification endpoint shape** — does `GET /authorization/202309/shops` actually return an FBT enrollment flag, or do we need a different endpoint? See risk A0. **No frontend Accounts page toggle work begins until resolved.**
-2. **App scope coverage** — does the existing TikTok app cover FBT, or do we need a new app? See risk A3. Gates the credential model and `.env` shape.
-3. **Sandbox availability** — does TikTok provide an FBT-enabled sandbox shop? See risk A1. Gates end-to-end smoke testing for the rest of Phase 1.
+1. ~~**Eligibility verification endpoint shape**~~ — **RESOLVED 2026-05-12 via probe pattern.** `/authorization/202309/shops` doesn't expose FBT enrollment; we probe the FBT inventory endpoint with `limit=1` and infer enrollment from the response envelope. See risk A0 (closed).
+2. ~~**App scope coverage**~~ — **RESOLVED 2026-05-12.** Existing TikTok app already carries FBT API permissions. See risk A3 (closed).
+3. **Sandbox availability** — does TikTok provide an FBT-enabled sandbox shop? See risk A1. Gates the live error-code mapping for the probe and end-to-end smoke testing for the rest of Phase 1. **Partner Center ticket drafted 2026-05-12, submission pending.**
 
 ### Must answer by end of week 1
 
@@ -193,6 +224,8 @@
 | Channel registration | New `Channel(channelSlug='tiktok_fbt')` row in core WMS, sibling to existing `tiktok` | 2026-05-12 |
 | Operational kill-switch | `accounts.publish_fbt_to_wms` (admin-only, default TRUE) — separate from merchant-facing `fbt_enabled`. Pattern borrowed from Amazon FBA's `publish_fba_to_wms` (`LESSONS.md` line 6 records a 421-order leak that motivated this column). Every publisher fail-closes against both flags. | 2026-05-12 |
 | Fail-closed guard pattern | All FBT publishers and consumers must check `account.fbt_enabled === true && account.publish_fbt_to_wms === true` with strict equality, treating null/undefined/coerced values as `false`. Required test cases enumerated in `06-deployment-and-observability.md` §12. | 2026-05-12 |
+| App scope coverage | Existing TikTok app already carries FBT API permissions — no second app, no scope upgrade, no credential-model change. Verified via Partner Center scope inspection. | 2026-05-12 |
+| Eligibility verification mechanic | **Probe pattern.** `GET /authorization/202309/shops` does NOT expose FBT enrollment (only `id` + `region`). Instead, `verifyShopEligibility()` calls the FBT inventory endpoint with `limit=1` and infers enrollment from the response envelope: `code=0` → enrolled; specific error codes → not enrolled; other errors → unknown. UX is unchanged from the original design (same modal, same toasts) — only the underlying API call differs. | 2026-05-12 |
 | RabbitMQ topic family | `tiktok_fbt.*` (new) — disjoint from existing `tiktok.*` (untouched) | 2026-05-12 |
 | Phasing | 4w (mirror) + 3w (inbound) + 3w (fees) | 2026-05-12 |
 
