@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TikTok FBT — Full Lifecycle Mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* ========================================================================
+   TikTok FBT Mockup — self-contained styles. No external dependencies.
+   Aesthetic: MUI-ish, clean, light. TikTok pink as accent for FBT.
+   ======================================================================== */
+
+:root {
+  --bg:        #f3f4f6;
+  --panel-bg:  #ffffff;
+  --border:    #e5e7eb;
+  --border-strong: #d1d5db;
+  --text:      #111827;
+  --text-mid:  #4b5563;
+  --text-soft: #9ca3af;
+  --accent:    #fe2c55;          /* TikTok pink for FBT */
+  --accent-soft:#ffe2e8;
+  --link:      #2563eb;
+  --success:   #16a34a;
+  --success-soft:#dcfce7;
+  --warning:   #d97706;
+  --warning-soft:#fef3c7;
+  --danger:    #dc2626;
+  --danger-soft:#fee2e2;
+  --neutral:   #6b7280;
+  --neutral-soft:#f3f4f6;
+  --shadow:    0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg: 0 10px 20px rgba(0,0,0,.08), 0 3px 6px rgba(0,0,0,.05);
+  --radius:    8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  --sidebar-bg: #1f2937;
+  --sidebar-text: #d1d5db;
+  --sidebar-active: #374151;
+  --sidebar-accent: #fe2c55;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------ Top doc nav ------------ */
+
+.doc-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(17, 24, 39, 0.97);
+  color: #fff;
+  padding: 12px 24px;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-bottom: 1px solid #111827;
+  box-shadow: var(--shadow);
+}
+.doc-nav__brand {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  margin-right: auto;
+}
+.doc-nav__brand .pink { color: var(--accent); }
+.doc-nav a {
+  color: #d1d5db;
+  text-decoration: none;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.doc-nav a:hover { background: #374151; color: #fff; }
+
+/* ------------ Page container ------------ */
+
+.doc {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+
+.section {
+  margin-top: 56px;
+  scroll-margin-top: 64px;
+}
+.section:first-child { margin-top: 24px; }
+
+.section-eyebrow {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+.section-eyebrow.neutral {
+  background: var(--neutral-soft);
+  color: var(--text-mid);
+}
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  margin-bottom: 8px;
+}
+.section-title small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-soft);
+  margin-left: 12px;
+}
+.section-lead {
+  font-size: 16px;
+  color: var(--text-mid);
+  max-width: 720px;
+  margin-bottom: 28px;
+}
+
+.h-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 64px 0;
+}
+
+/* ------------ Browser frame ------------ */
+
+.browser {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.browser__chrome {
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.browser__dots {
+  display: flex;
+  gap: 6px;
+}
+.browser__dots span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #d1d5db;
+}
+.browser__dots span:nth-child(1) { background: #ef4444; }
+.browser__dots span:nth-child(2) { background: #f59e0b; }
+.browser__dots span:nth-child(3) { background: #10b981; }
+.browser__url {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mid);
+}
+
+.browser__body { display: flex; min-height: 540px; }
+
+/* ------------ Sidebar mockup ------------ */
+
+.wms-sidebar {
+  width: 220px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 14px 0;
+  font-size: 13px;
+}
+.wms-sidebar__brand {
+  padding: 0 18px 14px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  border-bottom: 1px solid #374151;
+  margin-bottom: 10px;
+}
+.wms-sidebar__brand .pink { color: var(--sidebar-accent); }
+.wms-sidebar__group { padding: 4px 0; }
+.wms-sidebar__heading {
+  padding: 8px 18px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #6b7280;
+  letter-spacing: .08em;
+}
+.wms-sidebar__item {
+  display: block;
+  padding: 7px 18px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+}
+.wms-sidebar__item.is-parent { font-weight: 600; color: #fff; }
+.wms-sidebar__item.is-child  { padding-left: 32px; font-size: 12.5px; }
+.wms-sidebar__item:hover { background: var(--sidebar-active); }
+.wms-sidebar__item.is-active {
+  background: var(--sidebar-active);
+  color: #fff;
+  border-left: 3px solid var(--accent);
+  padding-left: 15px;
+}
+.wms-sidebar__item.is-active.is-child {
+  padding-left: 29px;
+}
+
+/* ------------ Main pane ------------ */
+
+.wms-main {
+  flex: 1;
+  background: var(--bg);
+  padding: 22px;
+  min-width: 0;
+}
+
+.crumb {
+  font-size: 12px;
+  color: var(--text-soft);
+  margin-bottom: 6px;
+}
+.crumb span { color: var(--text-mid); }
+.crumb b { color: var(--text); font-weight: 600; }
+
+.page-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-title h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.page-title .meta {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.page-title .meta b { color: var(--success); font-weight: 600; }
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar .grow { flex: 1; }
+
+/* ------------ Buttons ------------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border-strong);
+  text-decoration: none;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.btn:hover { background: #f9fafb; }
+.btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn--primary:hover { background: #e02148; }
+.btn--ghost { background: transparent; border-color: transparent; color: var(--text-mid); }
+.btn--ghost:hover { color: var(--text); background: #f3f4f6; }
+.btn--sm { padding: 4px 10px; font-size: 12px; }
+
+/* ------------ Form inputs (mocked) ------------ */
+
+.input, .select {
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: var(--font);
+}
+.input { min-width: 200px; }
+.input::placeholder { color: var(--text-soft); }
+.select::after { content: " ▾"; }
+
+/* ------------ Cards / panels ------------ */
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.card-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.card-grid--2 { grid-template-columns: repeat(2, 1fr); }
+
+.stat {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.stat__label {
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 4px;
+}
+.stat__value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.stat__delta {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.stat__delta.up   { color: var(--success); }
+.stat__delta.down { color: var(--danger); }
+
+/* ------------ Tables ------------ */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 13px;
+}
+.table th, .table td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.table th {
+  background: #f9fafb;
+  font-weight: 600;
+  color: var(--text-mid);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.table tr:last-child td { border-bottom: 0; }
+.table tr:hover td { background: #fafbfc; }
+.table td.muted { color: var(--text-soft); }
+.table td .sku { font-family: var(--mono); font-size: 12px; }
+.table .num   { text-align: right; font-variant-numeric: tabular-nums; }
+.table img.thumb {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: var(--neutral-soft);
+}
+
+/* ------------ Badges ------------ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.badge::before {
+  content: "●";
+  font-size: 10px;
+}
+.badge.green   { background: var(--success-soft); color: var(--success); }
+.badge.amber   { background: var(--warning-soft); color: var(--warning); }
+.badge.red     { background: var(--danger-soft);  color: var(--danger); }
+.badge.neutral { background: var(--neutral-soft); color: var(--text-mid); }
+.badge.accent  { background: var(--accent-soft);  color: var(--accent); }
+.badge.info    { background: #dbeafe;             color: #2563eb; }
+
+.badge--flat { padding: 2px 6px; }
+.badge--flat::before { content: none; }
+
+/* ------------ Timeline ------------ */
+
+.timeline { padding-left: 8px; }
+.timeline__row {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding-bottom: 10px;
+}
+.timeline__row:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 5px; top: 16px;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.timeline__dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  margin-top: 4px;
+  background: var(--success);
+  flex-shrink: 0;
+  z-index: 1;
+}
+.timeline__dot.pending { background: var(--border-strong); }
+.timeline__label { font-size: 13px; }
+.timeline__time  { font-size: 11px; color: var(--text-soft); }
+
+/* ------------ Drawer mock ------------ */
+
+.drawer-mock {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  margin-top: 16px;
+}
+.drawer-mock h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ------------ Modal mock (used for connect flow) ------------ */
+
+.modal-mock {
+  width: 460px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+}
+.modal-mock h3 {
+  font-size: 17px;
+  margin-bottom: 14px;
+}
+.modal-mock__row {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.modal-mock__row label {
+  display: block;
+  color: var(--text-mid);
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+.modal-mock__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ------------ Empty state ------------ */
+
+.empty {
+  text-align: center;
+  padding: 56px 24px;
+  background: var(--panel-bg);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-mid);
+}
+.empty__icon { font-size: 36px; margin-bottom: 12px; }
+.empty__title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.empty__lead { font-size: 13px; max-width: 380px; margin: 0 auto 16px; }
+
+/* ------------ Journey map ------------ */
+
+.journey {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+.journey__row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+.journey__stage {
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  text-align: center;
+  position: relative;
+}
+.journey__stage.is-accent {
+  background: #fff7f9;
+  border-color: var(--accent);
+}
+.journey__num {
+  display: inline-flex;
+  width: 26px; height: 26px;
+  align-items: center; justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.journey__title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.journey__sub {
+  font-size: 11px;
+  color: var(--text-mid);
+  font-family: var(--mono);
+  line-height: 1.4;
+}
+.journey__phase {
+  margin-top: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--text-soft);
+  text-transform: uppercase;
+}
+.journey__row + .journey__row { margin-top: 18px; }
+.journey__cross {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.journey__cross .label { font-weight: 600; min-width: 200px; font-size: 13px; }
+.journey__cross .desc  { font-size: 12px; color: var(--text-mid); }
+
+/* ------------ Wizard ------------ */
+
+.stepper {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.stepper__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.stepper__step .dot {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.stepper__step.is-done .dot   { background: var(--success); }
+.stepper__step.is-active .dot { background: var(--accent); }
+.stepper__step.is-active      { color: var(--text); font-weight: 600; }
+.stepper__step.is-done        { color: var(--success); }
+
+.wizard-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+/* ------------ Legend / pill row ------------ */
+
+.legend {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+/* ------------ Activity timeline (compact) ------------ */
+
+.activity {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  font-size: 13px;
+  overflow: hidden;
+}
+.activity__row {
+  display: grid;
+  grid-template-columns: 130px 24px 1fr;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  align-items: center;
+}
+.activity__row:last-child { border-bottom: 0; }
+.activity__time { font-size: 11px; color: var(--text-soft); font-family: var(--mono); }
+.activity__icon { font-size: 14px; }
+.activity__msg  { color: var(--text); }
+.activity__msg .muted { color: var(--text-soft); }
+.activity__row.warn .activity__icon  { color: var(--warning); }
+.activity__row.ok .activity__icon    { color: var(--success); }
+.activity__row.info .activity__icon  { color: var(--link); }
+
+/* ------------ Misc utility ------------ */
+
+.row { display: flex; gap: 12px; align-items: center; }
+.row.gap-8 { gap: 8px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.justify-between { justify-content: space-between; }
+.text-soft { color: var(--text-soft); }
+.text-mid  { color: var(--text-mid); }
+.text-sm   { font-size: 12px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.fw-600 { font-weight: 600; }
+.fw-700 { font-weight: 700; }
+
+.note {
+  background: #f3f4f6;
+  border-left: 3px solid var(--accent);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin: 14px 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.note b { color: var(--text); }
+
+.kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: #f3f4f6;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-mid);
+}
+
+/* ------------ Chart placeholder ------------ */
+
+.chart {
+  height: 110px;
+  background: linear-gradient(180deg,#fdf2f4 0%, #fff 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+.chart svg { width: 100%; height: 100%; }
+.bar-chart {
+  height: 130px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.bar-chart .bar {
+  flex: 1;
+  background: linear-gradient(180deg, var(--accent) 0%, #f97b95 100%);
+  border-radius: 3px 3px 0 0;
+  position: relative;
+}
+.bar-chart .bar .lbl {
+  position: absolute;
+  bottom: -18px;
+  font-size: 10px;
+  color: var(--text-soft);
+  width: 100%;
+  text-align: center;
+}
+
+/* ------------ Picker queue table proof of exclusion ------------ */
+
+.callout-strikethrough {
+  background: #fef2f2;
+  border: 1px dashed var(--danger);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--danger);
+  margin-top: 12px;
+}
+
+/* ------------ Print friendliness ------------ */
+
+@media print {
+  .doc-nav { position: static; }
+  .browser { break-inside: avoid; box-shadow: none; }
+  .section { break-inside: avoid; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================== Top nav ============================== -->
+<nav class="doc-nav">
+  <div class="doc-nav__brand">WMS<span class="pink">360</span> · TikTok FBT Lifecycle Mockup</div>
+  <a href="#journey">Journey</a>
+  <a href="#connect">Connect</a>
+  <a href="#accounts">Accounts</a>
+  <a href="#dashboard">Dashboard</a>
+  <a href="#inventory">Inventory</a>
+  <a href="#inbound">Inbound</a>
+  <a href="#orders">Orders</a>
+  <a href="#fees">Fees</a>
+  <a href="#activity">Activity</a>
+  <a href="#admin">Admin</a>
+</nav>
+
+<div class="doc">
+
+<!-- ============================== Hero ============================== -->
+<section class="section">
+  <span class="section-eyebrow">Mockup · v1 (post competitor review)</span>
+  <h1 class="section-title">TikTok FBT — Full Lifecycle Layout
+    <small>D:\office porjects\tiktok-fbt-microservice\mockup.html</small>
+  </h1>
+  <p class="section-lead">
+    Every screen the merchant interacts with, in the order they encounter them. From the
+    first OAuth click through reconciling monthly TikTok fees. Each screen below is rendered
+    as a browser frame; the layout is deliberately HTML/CSS-faithful so a non-coder can
+    open this file in any browser and walk the whole journey.
+  </p>
+
+  <div class="legend">
+    <div><span class="badge green">●&nbsp;Green</span> &nbsp;Healthy stock (&ge; 30 days cover)</div>
+    <div><span class="badge amber">●&nbsp;Amber</span> &nbsp;Plan a restock (14–30 days)</div>
+    <div><span class="badge red">●&nbsp;Red</span> &nbsp;Restock now (&lt; 14 days)</div>
+    <div><span class="badge accent">⚡&nbsp;FBT</span> &nbsp;Fulfilled by TikTok</div>
+    <div><span class="badge info">Phase 2</span> &nbsp;Inbound shipments</div>
+    <div><span class="badge neutral">Phase 3</span> &nbsp;Fees &amp; reimbursements</div>
+  </div>
+</section>
+
+
+<!-- ============================== Journey ============================== -->
+<section class="section" id="journey">
+  <span class="section-eyebrow neutral">Big picture</span>
+  <h2 class="section-title">One journey, eight data stores</h2>
+  <p class="section-lead">
+    Read left to right. The merchant connects an account, sees their listings, ships boxes to
+    TikTok, watches inventory mirror, watches orders flow in, reconciles fees. The bottom row is
+    cross-cutting: it sits behind every step.
+  </p>
+
+  <div class="journey">
+    <div class="journey__row">
+      <div class="journey__stage">
+        <div class="journey__num">1</div>
+        <div class="journey__title">Connect shop</div>
+        <div class="journey__sub">fbt_accounts</div>
+        <div class="journey__phase">Phase 1</div>
+      </div>
+      <div class="journey__stage">
+        <div class="journey__num">2</div>
+        <div class="journey__title">See listings</div>
+        <div class="journey__sub">fbt_products<br>fbt_product_variations</div>
+        <div class="journey__phase">Phase 1</div>
+      </div>
+      <div class="journey__stage is-accent">
+        <div class="journey__num">3</div>
+        <div class="journey__title">Send stock</div>
+        <div class="journey__sub">fbt_inbound_shipments<br>+ items</div>
+        <div class="journey__phase">Phase 2</div>
+      </div>
+      <div class="journey__stage">
+        <div class="journey__num">4</div>
+        <div class="journey__title">Mirror inventory</div>
+        <div class="journey__sub">fbt_inventory</div>
+        <div class="journey__phase">Phase 1</div>
+      </div>
+      <div class="journey__stage">
+        <div class="journey__num">5</div>
+        <div class="journey__title">Watch orders</div>
+        <div class="journey__sub">fbt_orders<br>fbt_order_items</div>
+        <div class="journey__phase">Phase 1</div>
+      </div>
+      <div class="journey__stage">
+        <div class="journey__num">6</div>
+        <div class="journey__title">Reconcile fees</div>
+        <div class="journey__sub">fbt_fees<br>fbt_returns</div>
+        <div class="journey__phase">Phase 3</div>
+      </div>
+    </div>
+
+    <div class="journey__row">
+      <div class="journey__cross">
+        <div class="label">fbt_activity_logs</div>
+        <div class="desc">Diary of everything above &mdash; visible to merchant on every account card.</div>
+      </div>
+    </div>
+    <div class="journey__row">
+      <div class="journey__cross">
+        <div class="label">fbt_webhook_events</div>
+        <div class="desc">Invisible plumbing &mdash; idempotency guard so TikTok retries don&rsquo;t double-process. Admin-only view at <span class="kbd">/clients/tiktok-fbt/admin/webhooks</span>.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Design principle from competitor review:</b> Pipe17 markets &ldquo;99.9% inventory accuracy&rdquo; and
+    &ldquo;exception management &amp; alerts&rdquo; as headline features. We answer that with prominent
+    health badges, a Reorder Alerts panel above the fold on the dashboard, and Discrepancy Alerts on
+    the fees page. The merchant never has to dig for a problem &mdash; problems come to them.
+  </div>
+</section>
+
+
+<!-- ============================== CONNECT ============================== -->
+<section class="section" id="connect">
+  <span class="section-eyebrow">Step 1 · fbt_accounts</span>
+  <h2 class="section-title">Connecting a TikTok FBT shop</h2>
+  <p class="section-lead">
+    Three screens. Empty state &rarr; modal &rarr; OAuth-back interstitial. After this the merchant
+    is permanently set up.
+  </p>
+
+  <!-- ----- Empty state ----- -->
+  <div class="browser">
+    <div class="browser__chrome">
+      <div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / accounts</div>
+    </div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent" href="#">📦 Catalogue</a>
+        <a class="wms-sidebar__item is-parent" href="#">🛒 Orders</a>
+        <a class="wms-sidebar__item is-parent" href="#">🏬 Warehouses</a>
+        <div class="wms-sidebar__heading">Marketplaces</div>
+        <a class="wms-sidebar__item is-parent" href="#">eBay</a>
+        <a class="wms-sidebar__item is-parent" href="#">Shopify</a>
+        <a class="wms-sidebar__item is-parent" href="#">Amazon</a>
+        <a class="wms-sidebar__item is-parent" href="#">TikTok Shop</a>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Accounts</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child" href="#">Inbound shipments</a>
+        <a class="wms-sidebar__item is-child" href="#">Fees</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Accounts</b></div>
+        <div class="page-title">
+          <h1>TikTok FBT Accounts</h1>
+          <button class="btn btn--primary">＋ Connect FBT shop</button>
+        </div>
+
+        <div class="empty">
+          <div class="empty__icon">🛒</div>
+          <div class="empty__title">No FBT shops connected yet</div>
+          <div class="empty__lead">
+            Connect a TikTok shop that&rsquo;s enrolled in Fulfilled by TikTok to start
+            mirroring inventory, orders, and fees in WMS.
+          </div>
+          <button class="btn btn--primary">＋ Connect FBT shop</button>
+          <div class="mt-12 text-sm text-mid">
+            Don&rsquo;t have FBT enabled yet? <a href="#" style="color:var(--accent)">Apply on TikTok Seller Center →</a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ----- Connect modal ----- -->
+  <div class="card-grid card-grid--2" style="grid-template-columns: 1fr 1fr;">
+    <div>
+      <h3 class="fw-600 mb-8">Modal: connect a shop</h3>
+      <div class="modal-mock">
+        <h3>Connect a TikTok FBT shop</h3>
+        <div class="modal-mock__row">
+          <label>Shop region</label>
+          <select class="select" style="width:100%">
+            <option>🇬🇧 United Kingdom (GB)</option>
+            <option>🇺🇸 United States (US)</option>
+          </select>
+        </div>
+        <div class="text-sm text-mid mt-8">
+          You&rsquo;ll be redirected to TikTok to authorise us. We only request scopes needed for
+          FBT &mdash; product, inventory, orders, fulfilment, finance.
+        </div>
+        <div class="modal-mock__actions">
+          <button class="btn">Cancel</button>
+          <button class="btn btn--primary">Continue to TikTok →</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3 class="fw-600 mb-8">Interstitial: link to seller (optional)</h3>
+      <div class="modal-mock">
+        <h3>Link to a seller account?</h3>
+        <div class="text-sm text-mid mb-12">
+          Linking shows side-by-side stock (own warehouse + FBT) in your dashboards.
+          Optional; you can change this any time.
+        </div>
+        <div class="modal-mock__row">
+          <label>
+            <input type="radio" name="link" checked> Acme Ltd &mdash; Seller (id 142, GB)
+          </label><br>
+          <label class="mt-8">
+            <input type="radio" name="link"> Acme Trade &mdash; Seller (id 156, GB)
+          </label><br>
+          <label class="mt-8">
+            <input type="radio" name="link"> None of the above / skip for now
+          </label>
+        </div>
+        <div class="modal-mock__actions">
+          <button class="btn">Skip</button>
+          <button class="btn btn--primary">Save link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note mt-16">
+    <b>What happens behind the scenes:</b> OAuth code → token exchange → AES-256-GCM encrypt
+    → insert <span class="kbd">fbt_accounts</span> row → publish
+    <span class="kbd">tiktok_fbt.to.wms.account_connected</span> → core-service creates one
+    virtual warehouse row (<span class="kbd">warehouse_type = 'fbt_tiktok'</span>) → first
+    inventory poll queued. All inside ~3 seconds.
+  </div>
+</section>
+
+
+<!-- ============================== ACCOUNTS LIST ============================== -->
+<section class="section" id="accounts">
+  <span class="section-eyebrow">Step 1 (after) · fbt_accounts</span>
+  <h2 class="section-title">Account cards &mdash; the operational home</h2>
+  <p class="section-lead">
+    After connect, the same page hosts one card per shop. Sync settings, last verification,
+    a manual refresh, and a one-click activity log.
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome">
+      <div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / accounts</div>
+    </div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <div class="wms-sidebar__heading">Marketplaces</div>
+        <a class="wms-sidebar__item is-parent" href="#">TikTok Shop</a>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Accounts</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child" href="#">Inbound shipments</a>
+        <a class="wms-sidebar__item is-child" href="#">Fees</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Accounts</b></div>
+        <div class="page-title">
+          <h1>TikTok FBT Accounts <span class="text-sm text-soft" style="font-weight:500">2 connected</span></h1>
+          <button class="btn btn--primary">＋ Connect FBT shop</button>
+        </div>
+
+        <!-- card 1 connected -->
+        <div class="card mb-16">
+          <div class="row justify-between mb-8" style="align-items:flex-start">
+            <div>
+              <div class="fw-700" style="font-size:15px">Acme Ltd &mdash; UK FBT</div>
+              <div class="text-sm text-soft">Shop ID 7290xxxxxxx · Region GB · Linked to <a href="#" style="color:var(--link)">Acme Ltd &mdash; Seller (#142)</a></div>
+            </div>
+            <div><span class="badge green">●&nbsp;Connected</span></div>
+          </div>
+          <div class="card-grid card-grid--3" style="margin:14px 0 8px">
+            <div class="stat">
+              <div class="stat__label">Sync orders</div>
+              <div class="stat__value" style="font-size:14px">●&nbsp;Active</div>
+              <div class="stat__delta">Last: 12 May 09:31</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Sync inventory</div>
+              <div class="stat__value" style="font-size:14px">●&nbsp;Active</div>
+              <div class="stat__delta">Last: 12 May 09:26 (7m ago)</div>
+            </div>
+            <div class="stat">
+              <div class="stat__label">Publish to WMS</div>
+              <div class="stat__value" style="font-size:14px">●&nbsp;On</div>
+              <div class="stat__delta">Token expires 19 May</div>
+            </div>
+          </div>
+          <div class="row gap-8">
+            <button class="btn">↻ Sync now</button>
+            <button class="btn btn--ghost">View activity</button>
+            <button class="btn btn--ghost">Capabilities</button>
+            <span style="flex:1"></span>
+            <button class="btn btn--ghost" style="color:var(--danger)">Disconnect</button>
+          </div>
+        </div>
+
+        <!-- card 2 disconnected -->
+        <div class="card" style="border-color:var(--danger-soft); background:#fff7f8">
+          <div class="row justify-between mb-8" style="align-items:flex-start">
+            <div>
+              <div class="fw-700" style="font-size:15px">Acme Trade &mdash; UK FBT (old)</div>
+              <div class="text-sm text-soft">Shop ID 7290999bbbb · Region GB · Disconnected 18 Apr 14:02</div>
+            </div>
+            <div><span class="badge red">⨯&nbsp;Disconnected</span></div>
+          </div>
+          <div class="text-sm text-mid">
+            Past data preserved (in-flight orders continue to be tracked).
+            No new inventory polls or order syncs will run.
+          </div>
+          <div class="row gap-8 mt-12">
+            <button class="btn btn--primary">Reconnect</button>
+            <button class="btn btn--ghost">View activity</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== DASHBOARD ============================== -->
+<section class="section" id="dashboard">
+  <span class="section-eyebrow">Phase 1 · the morning view</span>
+  <h2 class="section-title">FBT Dashboard</h2>
+  <p class="section-lead">
+    What the merchant lands on every day. Stat cards above the fold, sales trend chart,
+    health pie, and a Reorder Alerts table that drives them straight into action.
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome">
+      <div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / dashboard</div>
+    </div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child" href="#">Accounts</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child" href="#">Inbound shipments</a>
+        <a class="wms-sidebar__item is-child" href="#">Fees</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Dashboard</b></div>
+        <div class="page-title">
+          <h1>TikTok FBT Dashboard</h1>
+          <div class="meta">Live inventory · refreshed every 15 minutes · last sync <b>7 min ago</b></div>
+        </div>
+
+        <div class="card-grid">
+          <div class="stat">
+            <div class="stat__label">Connected accounts</div>
+            <div class="stat__value">2</div>
+            <div class="stat__delta">UK only</div>
+          </div>
+          <div class="stat">
+            <div class="stat__label">FBT SKUs active</div>
+            <div class="stat__value">147</div>
+            <div class="stat__delta up">▲ 4 this week</div>
+          </div>
+          <div class="stat">
+            <div class="stat__label">Units in FBT FCs</div>
+            <div class="stat__value">3,840</div>
+            <div class="stat__delta down">▼ 312 last 7d</div>
+          </div>
+          <div class="stat">
+            <div class="stat__label">Orders today (FBT)</div>
+            <div class="stat__value">58</div>
+            <div class="stat__delta up">▲ 12% vs yesterday</div>
+          </div>
+        </div>
+
+        <div class="card-grid card-grid--2">
+          <div class="card">
+            <div class="row justify-between mb-12">
+              <div class="fw-600">Stock health</div>
+              <a href="#" style="font-size:12px; color:var(--link)">View all →</a>
+            </div>
+            <div class="row" style="gap:18px; align-items:flex-start">
+              <svg width="120" height="120" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#dcfce7" stroke-width="4"/>
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#16a34a" stroke-width="4"
+                        stroke-dasharray="84,16" stroke-dashoffset="0"/>
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#d97706" stroke-width="4"
+                        stroke-dasharray="12,88" stroke-dashoffset="-84"/>
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#dc2626" stroke-width="4"
+                        stroke-dasharray="4,96"  stroke-dashoffset="-96"/>
+                <text x="18" y="20" text-anchor="middle" font-size="6" font-weight="700" fill="#111827">147</text>
+              </svg>
+              <div class="col" style="flex:1">
+                <div class="row gap-8"><span class="badge green">●&nbsp;Green</span> <span class="text-sm text-mid">124 SKUs</span></div>
+                <div class="row gap-8"><span class="badge amber">●&nbsp;Amber</span> <span class="text-sm text-mid">18 SKUs</span></div>
+                <div class="row gap-8"><span class="badge red">●&nbsp;Red</span> <a href="#inventory" class="text-sm" style="color:var(--danger); font-weight:600">5 SKUs →</a></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row justify-between mb-12">
+              <div class="fw-600">FBT sales · last 30 days</div>
+              <span class="text-sm text-soft">£&nbsp;14,820</span>
+            </div>
+            <div class="chart">
+              <svg viewBox="0 0 300 110" preserveAspectRatio="none">
+                <polyline points="0,90 25,80 50,70 75,55 100,60 125,40 150,45 175,30 200,35 225,25 250,18 275,22 300,10"
+                          fill="none" stroke="#fe2c55" stroke-width="2"/>
+                <polyline points="0,90 25,80 50,70 75,55 100,60 125,40 150,45 175,30 200,35 225,25 250,18 275,22 300,10 300,110 0,110"
+                          fill="#fe2c5520" stroke="none"/>
+              </svg>
+            </div>
+            <div class="row justify-between text-sm text-soft mt-8">
+              <span>13 Apr</span><span>27 Apr</span><span>11 May</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="row justify-between mb-12">
+            <div class="fw-600">Reorder alerts · stock below 14 days</div>
+            <span class="badge red">●&nbsp;5 SKUs</span>
+          </div>
+          <table class="table">
+            <thead><tr>
+              <th>SKU</th><th>Name</th><th class="num">Fulfillable</th>
+              <th class="num">Vel / day</th><th class="num">Days cover</th>
+              <th>Health</th><th></th>
+            </tr></thead>
+            <tbody>
+              <tr><td class="sku">WIDGET-GRN-L</td><td>Green widget (large)</td>
+                  <td class="num">42</td><td class="num">6.5</td>
+                  <td class="num">6.5</td>
+                  <td><span class="badge red">●&nbsp;Red</span></td>
+                  <td><button class="btn btn--sm btn--primary">Plan inbound</button></td></tr>
+              <tr><td class="sku">STICKER-GLAM</td><td>Glam sticker pack</td>
+                  <td class="num">12</td><td class="num">1.5</td>
+                  <td class="num">8.0</td>
+                  <td><span class="badge red">●&nbsp;Red</span></td>
+                  <td><button class="btn btn--sm btn--primary">Plan inbound</button></td></tr>
+              <tr><td class="sku">PLUSH-CAT-S</td><td>Plush cat (small)</td>
+                  <td class="num">5</td><td class="num">2.0</td>
+                  <td class="num">2.5</td>
+                  <td><span class="badge red">●&nbsp;Red</span></td>
+                  <td><button class="btn btn--sm btn--primary">Plan inbound</button></td></tr>
+              <tr><td class="sku">GIZMO-XL</td><td>Gizmo (XL)</td>
+                  <td class="num">18</td><td class="num">2.5</td>
+                  <td class="num">7.2</td>
+                  <td><span class="badge red">●&nbsp;Red</span></td>
+                  <td><button class="btn btn--sm btn--primary">Plan inbound</button></td></tr>
+              <tr><td class="sku">MUG-RED</td><td>Red mug</td>
+                  <td class="num">22</td><td class="num">2.0</td>
+                  <td class="num">11.0</td>
+                  <td><span class="badge red">●&nbsp;Red</span></td>
+                  <td><button class="btn btn--sm btn--primary">Plan inbound</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== INVENTORY ============================== -->
+<section class="section" id="inventory">
+  <span class="section-eyebrow">Step 4 · fbt_inventory</span>
+  <h2 class="section-title">Inventory mirror &mdash; 15-min refresh, side-by-side WMS stock</h2>
+  <p class="section-lead">
+    The most-used page after launch. Every row joins TikTok&rsquo;s FBT stock with the
+    merchant&rsquo;s own warehouse stock so they always see the full picture.
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome">
+      <div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inventory</div>
+    </div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child" href="#">Accounts</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child" href="#">Inbound shipments</a>
+        <a class="wms-sidebar__item is-child" href="#">Fees</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Inventory</b></div>
+        <div class="page-title">
+          <h1>FBT Inventory</h1>
+          <div class="meta">Last synced <b>7 min ago</b> · next sync in 8 min &nbsp; <button class="btn btn--sm">↻ Sync now</button></div>
+        </div>
+
+        <div class="toolbar">
+          <select class="select"><option>Region: UK</option></select>
+          <select class="select"><option>Account: All</option></select>
+          <select class="select"><option>Health: All</option></select>
+          <input class="input" placeholder="🔍 Search SKU or name…">
+          <span class="grow"></span>
+          <button class="btn btn--ghost">Export CSV</button>
+          <button class="btn">Bulk replenish</button>
+        </div>
+
+        <table class="table">
+          <thead><tr>
+            <th><input type="checkbox"></th>
+            <th></th>
+            <th>SKU / Name</th>
+            <th class="num">Fulfillable</th>
+            <th class="num">Inbound</th>
+            <th class="num">Reserved</th>
+            <th class="num">Unfulfillable</th>
+            <th class="num">Days cover</th>
+            <th>Health</th>
+            <th class="num">WMS own stock</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><div class="thumb" style="width:28px;height:28px;background:#fee2e2;border-radius:4px"></div></td>
+              <td><span class="sku">WIDGET-GRN-L</span><br><span class="text-soft text-sm">Green widget (large)</span></td>
+              <td class="num"><b>42</b></td>
+              <td class="num">120</td>
+              <td class="num">3</td>
+              <td class="num">1</td>
+              <td class="num">6.5</td>
+              <td><span class="badge red">●&nbsp;Red</span></td>
+              <td class="num">85</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><div class="thumb" style="width:28px;height:28px;background:#dbeafe;border-radius:4px"></div></td>
+              <td><span class="sku">WIDGET-BLU-L</span><br><span class="text-soft text-sm">Blue widget (large)</span></td>
+              <td class="num"><b>200</b></td>
+              <td class="num">0</td>
+              <td class="num">8</td>
+              <td class="num">0</td>
+              <td class="num">41.7</td>
+              <td><span class="badge green">●&nbsp;Green</span></td>
+              <td class="num">120</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><div class="thumb" style="width:28px;height:28px;background:#dcfce7;border-radius:4px"></div></td>
+              <td><span class="sku">GIZMO-S</span><br><span class="text-soft text-sm">Gizmo (small)</span></td>
+              <td class="num"><b>102</b></td>
+              <td class="num">0</td>
+              <td class="num">2</td>
+              <td class="num">0</td>
+              <td class="num">20.4</td>
+              <td><span class="badge amber">●&nbsp;Amber</span></td>
+              <td class="num">410</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox"></td>
+              <td><div class="thumb" style="width:28px;height:28px;background:#fef3c7;border-radius:4px"></div></td>
+              <td><span class="sku">NEW-WIDGET-RED-L</span><br><span class="text-soft text-sm">Unmapped &mdash; not in WMS catalogue</span></td>
+              <td class="num"><b>0</b></td>
+              <td class="num">0</td>
+              <td class="num">0</td>
+              <td class="num">0</td>
+              <td class="num">—</td>
+              <td><span class="badge neutral">●&nbsp;New</span></td>
+              <td class="num"><a href="#" style="color:var(--link)">Map →</a></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="text-sm text-soft mt-8">Showing 4 of 147 items · ◄ Page 1 of 37 ►</div>
+
+        <!-- DRAWER MOCK -->
+        <div class="drawer-mock">
+          <h3>
+            <span class="sku">WIDGET-GRN-L</span> &mdash; Green widget (large)
+            <span class="badge red">●&nbsp;Red · 6.5d cover</span>
+          </h3>
+          <div class="card-grid card-grid--2">
+            <div>
+              <div class="text-sm text-mid mb-8">TikTok FC &mdash; <b>TikTok UK Bedford</b> · snapshot 09:23 (7 min ago)</div>
+              <table class="table" style="font-size:12px">
+                <tbody>
+                  <tr><td>Fulfillable</td><td class="num"><b>42</b></td></tr>
+                  <tr><td>Inbound &mdash; working</td><td class="num">20</td></tr>
+                  <tr><td>Inbound &mdash; shipped</td><td class="num">80</td></tr>
+                  <tr><td>Inbound &mdash; receiving</td><td class="num">20</td></tr>
+                  <tr><td>Reserved &mdash; pending order</td><td class="num">3</td></tr>
+                  <tr><td>Unfulfillable &mdash; damaged</td><td class="num">1</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div class="text-sm text-mid mb-8">Velocity</div>
+              <div class="row gap-8 mb-8">
+                <div class="stat" style="flex:1; padding:8px"><div class="stat__label">Sold 7d</div><div class="stat__value" style="font-size:16px">46</div></div>
+                <div class="stat" style="flex:1; padding:8px"><div class="stat__label">Sold 30d</div><div class="stat__value" style="font-size:16px">195</div></div>
+                <div class="stat" style="flex:1; padding:8px"><div class="stat__label">/day</div><div class="stat__value" style="font-size:16px">6.5</div></div>
+              </div>
+              <div class="text-sm text-mid mb-8">30-day sales</div>
+              <div class="bar-chart" style="height:80px; padding:6px">
+                <div class="bar" style="height:30%"></div>
+                <div class="bar" style="height:40%"></div>
+                <div class="bar" style="height:35%"></div>
+                <div class="bar" style="height:60%"></div>
+                <div class="bar" style="height:55%"></div>
+                <div class="bar" style="height:70%"></div>
+                <div class="bar" style="height:80%"></div>
+                <div class="bar" style="height:75%"></div>
+                <div class="bar" style="height:90%"></div>
+                <div class="bar" style="height:65%"></div>
+                <div class="bar" style="height:78%"></div>
+                <div class="bar" style="height:88%"></div>
+              </div>
+
+              <div class="row gap-8 mt-12">
+                <div class="text-sm">WMS own stock:</div>
+                <span class="text-sm">Manchester DC <b>85</b></span>
+                <span class="text-sm">London DC <b>0</b></span>
+              </div>
+            </div>
+          </div>
+          <div class="row justify-between mt-16">
+            <button class="btn btn--ghost">Close</button>
+            <button class="btn btn--primary">Create inbound shipment →</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== INBOUND WIZARD ============================== -->
+<section class="section" id="inbound">
+  <span class="section-eyebrow">Step 3 · fbt_inbound_shipments · Phase 2</span>
+  <h2 class="section-title">Inbound shipment wizard (4 steps)</h2>
+  <p class="section-lead">
+    Pick products &rarr; choose FC &rarr; review &rarr; print labels &amp; ship. Each step is its own
+    card, with a clear stepper at the top and a single primary action per step.
+  </p>
+
+  <!-- step 1 -->
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inbound / new</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Inbound shipments</a>
+      </aside>
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; Inbound &rsaquo; <b>New</b></div>
+        <div class="page-title">
+          <h1>New inbound shipment</h1>
+          <div class="meta">Step 1 of 4</div>
+        </div>
+        <div class="stepper">
+          <div class="stepper__step is-active"><div class="dot">1</div> Products</div>
+          <div class="stepper__step"><div class="dot">2</div> Destination FC</div>
+          <div class="stepper__step"><div class="dot">3</div> Review</div>
+          <div class="stepper__step"><div class="dot">4</div> Labels &amp; ship</div>
+        </div>
+        <div class="wizard-card">
+          <div class="row gap-8 mb-16">
+            <div class="col" style="flex:1">
+              <label class="text-sm text-mid">Source warehouse</label>
+              <select class="select"><option>Manchester DC</option></select>
+            </div>
+            <div class="col" style="flex:1">
+              <label class="text-sm text-mid">Carrier (optional, now)</label>
+              <select class="select"><option>DPD</option><option>Royal Mail</option></select>
+            </div>
+          </div>
+
+          <table class="table mb-12">
+            <thead><tr><th>SKU</th><th class="num">Available (own)</th><th>Health at FBT</th><th class="num">Units to ship</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="sku">WIDGET-GRN-L</td>
+                <td class="num">85</td>
+                <td><span class="badge red">●&nbsp;Red · 6.5d</span></td>
+                <td class="num"><input class="input" style="width:90px; text-align:right" value="500"></td>
+                <td><button class="btn btn--ghost btn--sm">✕</button></td>
+              </tr>
+              <tr>
+                <td class="sku">GIZMO-S</td>
+                <td class="num">410</td>
+                <td><span class="badge amber">●&nbsp;Amber · 20d</span></td>
+                <td class="num"><input class="input" style="width:90px; text-align:right" value="200"></td>
+                <td><button class="btn btn--ghost btn--sm">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button class="btn">＋ Add SKU</button>
+
+          <div class="row justify-between mt-16">
+            <div class="text-sm text-mid">Total units to ship: <b>700</b></div>
+            <div class="row gap-8">
+              <button class="btn">Cancel</button>
+              <button class="btn btn--primary">Next →</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- step 2 -->
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inbound / new</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a></aside>
+      <main class="wms-main">
+        <div class="page-title">
+          <h1>New inbound shipment</h1>
+          <div class="meta">Step 2 of 4</div>
+        </div>
+        <div class="stepper">
+          <div class="stepper__step is-done"><div class="dot">✓</div> Products</div>
+          <div class="stepper__step is-active"><div class="dot">2</div> Destination FC</div>
+          <div class="stepper__step"><div class="dot">3</div> Review</div>
+          <div class="stepper__step"><div class="dot">4</div> Labels &amp; ship</div>
+        </div>
+
+        <div class="wizard-card">
+          <div class="fw-600 mb-12">Where should TikTok receive this shipment?</div>
+          <div class="card-grid card-grid--2">
+            <label class="card" style="cursor:pointer">
+              <div class="row gap-8"><input type="radio" name="fc" checked> <b>Let TikTok decide</b> <span class="badge accent badge--flat">Recommended</span></div>
+              <div class="text-sm text-mid mt-8">Routes to whichever FC has fastest receive time.</div>
+            </label>
+            <label class="card" style="cursor:pointer">
+              <div class="row gap-8"><input type="radio" name="fc"> <b>FBT UK &mdash; Bedford</b></div>
+              <div class="text-sm text-mid mt-8">Capacity OK · ~2-day inbound</div>
+            </label>
+            <label class="card" style="cursor:pointer">
+              <div class="row gap-8"><input type="radio" name="fc"> <b>FBT UK &mdash; Manchester</b></div>
+              <div class="text-sm text-mid mt-8">Capacity tight · ~3-day inbound</div>
+            </label>
+            <label class="card" style="cursor:pointer; opacity:.6">
+              <div class="row gap-8"><input type="radio" name="fc" disabled> <b>FBT UK &mdash; London</b> <span class="badge red">Full</span></div>
+              <div class="text-sm text-mid mt-8">Accepting partial only</div>
+            </label>
+          </div>
+          <div class="row justify-between mt-16">
+            <button class="btn">← Back</button>
+            <button class="btn btn--primary">Next →</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- step 3 -->
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inbound / new</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a></aside>
+      <main class="wms-main">
+        <div class="page-title">
+          <h1>New inbound shipment</h1>
+          <div class="meta">Step 3 of 4 · Review</div>
+        </div>
+        <div class="stepper">
+          <div class="stepper__step is-done"><div class="dot">✓</div> Products</div>
+          <div class="stepper__step is-done"><div class="dot">✓</div> Destination FC</div>
+          <div class="stepper__step is-active"><div class="dot">3</div> Review</div>
+          <div class="stepper__step"><div class="dot">4</div> Labels &amp; ship</div>
+        </div>
+
+        <div class="wizard-card">
+          <div class="card-grid card-grid--3">
+            <div><div class="text-sm text-mid">From</div><div class="fw-600">Manchester DC</div></div>
+            <div><div class="text-sm text-mid">To</div><div class="fw-600">FBT UK &mdash; Bedford</div></div>
+            <div><div class="text-sm text-mid">Units</div><div class="fw-600">700 (2 SKUs)</div></div>
+          </div>
+
+          <table class="table mt-16">
+            <thead><tr><th>SKU</th><th class="num">Units</th><th class="num">Unit cost</th><th class="num">Line value</th></tr></thead>
+            <tbody>
+              <tr><td class="sku">WIDGET-GRN-L</td><td class="num">500</td><td class="num">£2.40</td><td class="num">£1,200.00</td></tr>
+              <tr><td class="sku">GIZMO-S</td><td class="num">200</td><td class="num">£4.50</td><td class="num">£900.00</td></tr>
+              <tr><th colspan="3" style="text-align:right">Total declared value</th><th class="num">£2,100.00</th></tr>
+            </tbody>
+          </table>
+
+          <div class="text-sm text-mid mt-12">Expected dispatch by <b>15 May 2026</b> (2 working days from now)</div>
+
+          <div class="row justify-between mt-16">
+            <button class="btn">← Back</button>
+            <button class="btn btn--primary">Submit plan to TikTok →</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- step 4 -->
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inbound / 0001</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a></aside>
+      <main class="wms-main">
+        <div class="page-title">
+          <h1>INB-2026-0001 <span class="badge green">●&nbsp;Plan confirmed</span></h1>
+          <div class="meta">Step 4 of 4 · Labels &amp; ship</div>
+        </div>
+        <div class="stepper">
+          <div class="stepper__step is-done"><div class="dot">✓</div> Products</div>
+          <div class="stepper__step is-done"><div class="dot">✓</div> Destination FC</div>
+          <div class="stepper__step is-done"><div class="dot">✓</div> Review</div>
+          <div class="stepper__step is-active"><div class="dot">4</div> Labels &amp; ship</div>
+        </div>
+
+        <div class="note"><b>✓ Plan submitted successfully.</b> TikTok plan ID <span class="kbd">PLN-99887</span></div>
+
+        <div class="card">
+          <div class="row gap-8">
+            <div style="font-size:32px">📄</div>
+            <div style="flex:1">
+              <div class="fw-600">inbound_labels_INB-2026-0001.pdf</div>
+              <div class="text-sm text-soft">3 pages · 700 units · 5 boxes</div>
+            </div>
+            <button class="btn">Download labels</button>
+          </div>
+        </div>
+
+        <div class="card mt-16">
+          <div class="fw-600 mb-12">After you hand the boxes to the carrier:</div>
+          <div class="row gap-8">
+            <div class="col" style="flex:1">
+              <label class="text-sm text-mid">Carrier</label>
+              <select class="select"><option>DPD</option></select>
+            </div>
+            <div class="col" style="flex:1">
+              <label class="text-sm text-mid">Tracking number</label>
+              <input class="input" placeholder="DPD-XXXX-XXXX-XXXX">
+            </div>
+          </div>
+          <div class="row justify-between mt-16">
+            <button class="btn">Save as draft</button>
+            <button class="btn btn--primary">Mark as shipped →</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <!-- Inbound DETAIL with progress -->
+  <h3 class="fw-600 mb-8 mt-16">After ship: live tracking of shipment status</h3>
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / inbound / 0001</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Inbound shipments</a></aside>
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; Inbound &rsaquo; <b>INB-2026-0001</b></div>
+        <div class="page-title">
+          <h1>INB-2026-0001 <span class="badge amber">●&nbsp;In transit</span></h1>
+          <div class="meta">DPD123XYZ ↗ · expected 13 May</div>
+        </div>
+
+        <div class="card-grid card-grid--3">
+          <div class="stat"><div class="stat__label">From</div><div class="stat__value" style="font-size:14px">Manchester DC</div></div>
+          <div class="stat"><div class="stat__label">To</div><div class="stat__value" style="font-size:14px">FBT UK Bedford</div></div>
+          <div class="stat"><div class="stat__label">Units planned</div><div class="stat__value">700</div></div>
+        </div>
+
+        <div class="card-grid card-grid--2 mt-16">
+          <div class="card">
+            <div class="fw-600 mb-12">Timeline</div>
+            <div class="timeline">
+              <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">Draft</div><div class="timeline__time">10 May 13:42</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">Submitted</div><div class="timeline__time">10 May 14:00</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">Plan confirmed</div><div class="timeline__time">10 May 14:01</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">Labels generated</div><div class="timeline__time">10 May 14:02</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">Shipped (handed off)</div><div class="timeline__time">11 May 09:14</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot pending"></div><div><div class="timeline__label text-soft">Receiving at FC</div><div class="timeline__time">—</div></div></div>
+              <div class="timeline__row"><div class="timeline__dot pending"></div><div><div class="timeline__label text-soft">Received</div><div class="timeline__time">—</div></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="fw-600 mb-12">Items</div>
+            <table class="table" style="font-size:12.5px">
+              <thead><tr><th>SKU</th><th class="num">Plan</th><th class="num">Ship</th><th class="num">Rcv</th><th class="num">Dmg</th><th class="num">Short</th></tr></thead>
+              <tbody>
+                <tr><td class="sku">WIDGET-GRN-L</td><td class="num">500</td><td class="num">500</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+                <tr><td class="sku">GIZMO-S</td><td class="num">200</td><td class="num">200</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row justify-between mt-16">
+          <button class="btn">Open in TikTok ↗</button>
+          <button class="btn" style="color:var(--danger)">Cancel shipment</button>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== ORDERS ============================== -->
+<section class="section" id="orders">
+  <span class="section-eyebrow">Step 5 · fbt_orders</span>
+  <h2 class="section-title">FBT orders &mdash; merchant watches, doesn&rsquo;t pick</h2>
+  <p class="section-lead">
+    Every row shows the &ldquo;<span class="badge accent">⚡&nbsp;FBT</span>&rdquo; badge so it&rsquo;s
+    obvious at a glance that the merchant has nothing to do. The picker queue at
+    <span class="kbd">/clients/order/awaiting-pick</span> explicitly excludes these orders and tells
+    the merchant why (see below).
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / orders</div></div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Orders</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Orders</b></div>
+        <div class="page-title">
+          <h1>FBT Orders</h1>
+          <div class="meta">58 today · 4 awaiting · 52 in transit · 2 delivered</div>
+        </div>
+
+        <div class="toolbar">
+          <select class="select"><option>Status: All</option></select>
+          <select class="select"><option>Date: Last 30 days</option></select>
+          <input class="input" placeholder="🔍 Search order # or SKU…">
+          <span class="grow"></span>
+          <button class="btn">↻ Sync now</button>
+          <button class="btn btn--ghost">Export CSV</button>
+        </div>
+
+        <table class="table">
+          <thead><tr>
+            <th>Order #</th><th>Date</th><th>Items</th><th class="num">Total</th>
+            <th>Status</th><th>Tracking</th><th>Customer</th><th></th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td><b>TK-12345</b> <span class="badge accent badge--flat">⚡&nbsp;FBT</span></td>
+              <td>12 May 09:14</td><td>2</td><td class="num">£42.00</td>
+              <td><span class="badge amber">●&nbsp;In transit</span></td>
+              <td><a href="#" style="color:var(--link)">AB123 ↗</a></td>
+              <td>John Doe</td>
+              <td><button class="btn btn--ghost btn--sm">View →</button></td>
+            </tr>
+            <tr>
+              <td><b>TK-12344</b> <span class="badge accent badge--flat">⚡&nbsp;FBT</span></td>
+              <td>12 May 08:30</td><td>1</td><td class="num">£15.00</td>
+              <td><span class="badge neutral">●&nbsp;Awaiting</span></td>
+              <td class="muted">—</td>
+              <td>Jane Smith</td>
+              <td><button class="btn btn--ghost btn--sm">View →</button></td>
+            </tr>
+            <tr>
+              <td><b>TK-12343</b> <span class="badge accent badge--flat">⚡&nbsp;FBT</span></td>
+              <td>11 May 19:01</td><td>3</td><td class="num">£67.50</td>
+              <td><span class="badge green">●&nbsp;Delivered</span></td>
+              <td><a href="#" style="color:var(--link)">AB121 ↗</a></td>
+              <td>K. Patel</td>
+              <td><button class="btn btn--ghost btn--sm">View →</button></td>
+            </tr>
+            <tr>
+              <td><b>TK-12342</b> <span class="badge accent badge--flat">⚡&nbsp;FBT</span></td>
+              <td>11 May 15:22</td><td>1</td><td class="num">£15.00</td>
+              <td><span class="badge red">⨯&nbsp;Cancelled</span></td>
+              <td class="muted">—</td>
+              <td>R. Khan</td>
+              <td><button class="btn btn--ghost btn--sm">View →</button></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- order detail drawer -->
+        <div class="drawer-mock">
+          <h3>
+            TK-12345 <span class="badge amber">●&nbsp;In transit</span>
+            <span class="badge accent">⚡&nbsp;Fulfilled by TikTok</span>
+          </h3>
+          <div class="card-grid card-grid--2">
+            <div>
+              <div class="text-sm text-mid">Order date</div><div class="fw-600 mb-8">12 May 09:14</div>
+              <div class="text-sm text-mid">Customer</div><div class="fw-600 mb-8">John Doe</div>
+              <div class="text-sm text-mid">Address</div>
+              <div class="fw-600 mb-8 text-sm">12 Example Street, London, SW1 0AA, GB</div>
+              <div class="text-sm text-mid">Tracking</div>
+              <div class="fw-600"><a href="#" style="color:var(--link)">AB123XYZ ↗</a> · Royal Mail</div>
+            </div>
+            <div>
+              <div class="text-sm text-mid mb-8">Items</div>
+              <table class="table" style="font-size:12.5px">
+                <tbody>
+                  <tr><td><span class="sku">WIDGET-RED-L</span></td><td class="num">2 × £15.00</td><td class="num">£30.00</td></tr>
+                  <tr><td><span class="sku">STICKER-PACK</span></td><td class="num">1 × £12.00</td><td class="num">£12.00</td></tr>
+                  <tr><th>Total</th><th></th><th class="num">£42.00 GBP</th></tr>
+                </tbody>
+              </table>
+              <div class="text-sm text-mid mt-12">TikTok-side status timeline</div>
+              <div class="timeline mt-8">
+                <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">AWAITING_SHIPMENT</div><div class="timeline__time">12 May 09:14</div></div></div>
+                <div class="timeline__row"><div class="timeline__dot"></div><div><div class="timeline__label">IN_TRANSIT</div><div class="timeline__time">12 May 14:20</div></div></div>
+                <div class="timeline__row"><div class="timeline__dot pending"></div><div><div class="timeline__label text-soft">DELIVERED</div><div class="timeline__time">—</div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="note mt-16">
+            <b>You do not need to pick/pack this order.</b> TikTok handles fulfilment.
+          </div>
+          <div class="row justify-between mt-12">
+            <button class="btn btn--ghost">Close</button>
+            <button class="btn">Open in TikTok Seller Center ↗</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Picker queue proof -->
+  <h3 class="fw-600 mb-8 mt-16">Proof: the picker queue explicitly excludes FBT</h3>
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / order / awaiting-pick</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Awaiting pick</a></aside>
+      <main class="wms-main">
+        <div class="page-title"><h1>Orders awaiting pick</h1></div>
+        <table class="table">
+          <thead><tr><th>Order #</th><th>Channel</th><th>Items</th><th>Warehouse</th></tr></thead>
+          <tbody>
+            <tr><td>EB-7788</td><td>eBay</td><td>3</td><td>Manchester DC</td></tr>
+            <tr><td>SH-2200</td><td>Shopify</td><td>1</td><td>London DC</td></tr>
+            <tr><td>TK-12999</td><td>TikTok</td><td>2</td><td>Manchester DC</td></tr>
+          </tbody>
+        </table>
+        <div class="callout-strikethrough">
+          ⓘ &nbsp;FBT orders such as <span class="kbd">TK-12345</span> are <b>not listed here</b> &mdash;
+          TikTok fulfils them. They appear in
+          <a href="#orders" style="color:var(--danger); font-weight:600">TikTok FBT &rsaquo; Orders</a>.
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== FEES ============================== -->
+<section class="section" id="fees">
+  <span class="section-eyebrow">Step 6 · fbt_fees · fbt_returns · Phase 3</span>
+  <h2 class="section-title">Fees &amp; reimbursements</h2>
+  <p class="section-lead">
+    Daily statement ingestion produces a clear picture: what TikTok charged, what they credited,
+    and what doesn&rsquo;t add up. Discrepancy alerts are first-class so the merchant can dispute
+    fast.
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / fees</div></div>
+    <div class="browser__body">
+
+      <aside class="wms-sidebar">
+        <div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child" href="#">Dashboard</a>
+        <a class="wms-sidebar__item is-child" href="#">Inventory</a>
+        <a class="wms-sidebar__item is-child" href="#">Orders</a>
+        <a class="wms-sidebar__item is-child" href="#">Inbound shipments</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Fees</a>
+      </aside>
+
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; <b>Fees &amp; Reimbursements</b></div>
+        <div class="page-title">
+          <h1>Fees &amp; Reimbursements</h1>
+          <div class="meta">Last statement ingested: <b>11 May 03:15</b></div>
+        </div>
+
+        <div class="toolbar">
+          <select class="select"><option>Range: Last 30 days</option></select>
+          <select class="select"><option>Account: All</option></select>
+          <select class="select"><option>Type: All</option></select>
+          <span class="grow"></span>
+          <button class="btn btn--ghost">Export CSV</button>
+        </div>
+
+        <div class="card-grid">
+          <div class="stat"><div class="stat__label">Total fees</div><div class="stat__value">£2,840</div></div>
+          <div class="stat"><div class="stat__label">Pick &amp; pack</div><div class="stat__value">£1,720</div><div class="stat__delta">1,433 orders</div></div>
+          <div class="stat"><div class="stat__label">Storage</div><div class="stat__value">£620</div></div>
+          <div class="stat"><div class="stat__label">Reimbursed</div><div class="stat__value" style="color:var(--success)">+£312</div></div>
+        </div>
+
+        <div class="card">
+          <div class="row justify-between mb-12">
+            <div class="fw-600">Fees by type, by week</div>
+            <div class="row gap-8 text-sm text-mid">
+              <span class="row gap-8"><span style="width:10px; height:10px; background:#fe2c55; border-radius:2px"></span> Pick/pack</span>
+              <span class="row gap-8"><span style="width:10px; height:10px; background:#f97b95; border-radius:2px"></span> Storage</span>
+              <span class="row gap-8"><span style="width:10px; height:10px; background:#fda4af; border-radius:2px"></span> Returns</span>
+            </div>
+          </div>
+          <div class="bar-chart" style="height:160px">
+            <div class="bar" style="height:60%"><div class="lbl">Wk1</div></div>
+            <div class="bar" style="height:75%"><div class="lbl">Wk2</div></div>
+            <div class="bar" style="height:55%"><div class="lbl">Wk3</div></div>
+            <div class="bar" style="height:85%"><div class="lbl">Wk4</div></div>
+          </div>
+        </div>
+
+        <div class="card mt-16" style="border-color: var(--warning); background:#fffbeb">
+          <div class="row justify-between">
+            <div>
+              <div class="fw-700" style="color:var(--warning)">⚠&nbsp;Discrepancy alerts (3)</div>
+              <div class="text-sm text-mid mt-8">
+                3 orders charged for storage but had 0 units in inventory snapshot.
+                Likely a month-end timing edge case &mdash; review and dispute if needed.
+              </div>
+            </div>
+            <button class="btn">Review →</button>
+          </div>
+        </div>
+
+        <div class="card-grid card-grid--2 mt-16">
+          <div>
+            <div class="fw-600 mb-8">Fee history</div>
+            <table class="table">
+              <thead><tr><th>Date</th><th>Type</th><th>SKU</th><th class="num">Amount</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>12 May</td><td><span class="badge--flat" style="font-size:11px">pick_pack</span></td><td class="sku">WIDGET-RED-L</td><td class="num">£1.20</td><td><span class="badge green">●&nbsp;Settled</span></td></tr>
+                <tr><td>12 May</td><td><span class="badge--flat" style="font-size:11px">storage</span></td><td class="text-soft">all</td><td class="num">£620.00</td><td><span class="badge green">●&nbsp;Settled</span></td></tr>
+                <tr><td>12 May</td><td><span class="badge--flat" style="font-size:11px">return_proc</span></td><td class="sku">WIDGET-BLU</td><td class="num">£0.80</td><td><span class="badge amber">●&nbsp;Pending</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <div class="fw-600 mb-8">Reimbursement claims</div>
+            <table class="table">
+              <thead><tr><th>Date</th><th>Reason</th><th>Order</th><th class="num">Amount</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>10 May</td><td>Damaged in FC</td><td>TK-11999</td><td class="num">+£15.00</td><td><span class="badge green">●&nbsp;Paid 11 May</span></td></tr>
+                <tr><td>12 May</td><td>Lost in FC</td><td>TK-12001</td><td class="num">+£8.00</td><td><span class="badge amber">●&nbsp;Pending</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== ACTIVITY ============================== -->
+<section class="section" id="activity">
+  <span class="section-eyebrow">Cross-cutting · fbt_activity_logs</span>
+  <h2 class="section-title">Activity log &mdash; the merchant&rsquo;s diary</h2>
+  <p class="section-lead">
+    One-click visibility into everything the service did for an account. Plain English, filterable,
+    immutable. This is the first thing support opens when a merchant says &ldquo;something is off.&rdquo;
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / accounts / 42 / activity</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">TikTok FBT</a>
+        <a class="wms-sidebar__item is-child is-active" href="#">Accounts</a></aside>
+      <main class="wms-main">
+        <div class="crumb">Home &rsaquo; TikTok FBT &rsaquo; Accounts &rsaquo; <b>Acme Ltd UK FBT &rsaquo; Activity</b></div>
+        <div class="page-title">
+          <h1>Activity &mdash; Acme Ltd UK FBT</h1>
+        </div>
+        <div class="toolbar">
+          <select class="select"><option>All events</option></select>
+          <input class="input" placeholder="🔍 Search activity…">
+        </div>
+
+        <div class="activity">
+          <div class="activity__row ok"><div class="activity__time">12 May 09:31</div><div class="activity__icon">✓</div><div class="activity__msg">Synced <b>4 new orders</b>, 0 updates</div></div>
+          <div class="activity__row ok"><div class="activity__time">12 May 09:26</div><div class="activity__icon">✓</div><div class="activity__msg">Inventory synced &mdash; <b>147 SKUs</b></div></div>
+          <div class="activity__row info"><div class="activity__time">12 May 09:14</div><div class="activity__icon">ⓘ</div><div class="activity__msg">Webhook <span class="kbd">ORDER_STATUS_CHANGE</span> processed <span class="muted">(TK-12345)</span></div></div>
+          <div class="activity__row info"><div class="activity__time">12 May 08:30</div><div class="activity__icon">ⓘ</div><div class="activity__msg">Webhook <span class="kbd">ORDER_STATUS_CHANGE</span> processed <span class="muted">(TK-12344)</span></div></div>
+          <div class="activity__row ok"><div class="activity__time">12 May 05:00</div><div class="activity__icon">✓</div><div class="activity__msg">Token refreshed <span class="muted">(next expiry 19 May)</span></div></div>
+          <div class="activity__row warn"><div class="activity__time">11 May 23:11</div><div class="activity__icon">⚠</div><div class="activity__msg">Rate-limited by TikTok, backed off 3s</div></div>
+          <div class="activity__row info"><div class="activity__time">11 May 16:42</div><div class="activity__icon">ⓘ</div><div class="activity__msg">Inbound shipment <b>INB-2026-0001</b> received at FBT UK Bedford</div></div>
+          <div class="activity__row ok"><div class="activity__time">11 May 09:14</div><div class="activity__icon">✓</div><div class="activity__msg">Inbound shipment <b>INB-2026-0001</b> shipped</div></div>
+          <div class="activity__row ok"><div class="activity__time">10 May 14:02</div><div class="activity__icon">✓</div><div class="activity__msg">Inbound plan <b>INB-2026-0001</b> confirmed</div></div>
+          <div class="activity__row ok"><div class="activity__time">10 May 14:00</div><div class="activity__icon">✓</div><div class="activity__msg">Inbound plan <b>INB-2026-0001</b> submitted</div></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== ADMIN ============================== -->
+<section class="section" id="admin">
+  <span class="section-eyebrow neutral">Internal only · fbt_webhook_events</span>
+  <h2 class="section-title">Webhook events admin view</h2>
+  <p class="section-lead">
+    Not part of the merchant-facing nav. Engineers and support open this when debugging
+    &ldquo;why didn&rsquo;t this order arrive?&rdquo; Each row links to the raw payload, HMAC verification
+    result, and processing latency.
+  </p>
+
+  <div class="browser">
+    <div class="browser__chrome"><div class="browser__dots"><span></span><span></span><span></span></div>
+      <div class="browser__url">app.wms360.com / clients / tiktok-fbt / admin / webhooks</div></div>
+    <div class="browser__body">
+      <aside class="wms-sidebar"><div class="wms-sidebar__brand">WMS<span class="pink">360</span></div>
+        <div class="wms-sidebar__heading">Admin</div>
+        <a class="wms-sidebar__item is-parent is-active" href="#">Webhooks</a>
+        <a class="wms-sidebar__item is-parent" href="#">Crons</a>
+        <a class="wms-sidebar__item is-parent" href="#">Queues</a>
+      </aside>
+      <main class="wms-main">
+        <div class="crumb">Admin &rsaquo; <b>TikTok FBT webhooks (last 24h)</b></div>
+        <div class="page-title">
+          <h1>Webhook events</h1>
+          <div class="meta">Received: 1,402 · Processed: 1,389 · Duplicates: 13 · Failed: 0</div>
+        </div>
+        <div class="toolbar">
+          <select class="select"><option>Type: All</option></select>
+          <select class="select"><option>Status: All</option></select>
+          <select class="select"><option>Account: All</option></select>
+        </div>
+        <table class="table">
+          <thead><tr><th>Received</th><th>Event</th><th>Status</th><th class="num">Latency</th><th>Account</th></tr></thead>
+          <tbody>
+            <tr><td>09:31:14</td><td class="sku">ORDER_STATUS_CHANGE</td><td><span class="badge green">●&nbsp;Processed</span></td><td class="num">142ms</td><td>UK FBT</td></tr>
+            <tr><td>09:30:42</td><td class="sku">PACKAGE_UPDATE</td><td><span class="badge green">●&nbsp;Processed</span></td><td class="num">98ms</td><td>UK FBT</td></tr>
+            <tr><td>09:30:41</td><td class="sku">ORDER_STATUS_CHANGE</td><td><span class="badge neutral">◌&nbsp;Duplicate</span></td><td class="num">14ms</td><td>UK FBT</td></tr>
+            <tr><td>09:14:02</td><td class="sku">ORDER_STATUS_CHANGE</td><td><span class="badge green">●&nbsp;Processed</span></td><td class="num">201ms</td><td>UK FBT</td></tr>
+            <tr><td>08:55:11</td><td class="sku">FBT_RETURN_RECEIVED</td><td><span class="badge green">●&nbsp;Processed</span></td><td class="num">245ms</td><td>UK FBT</td></tr>
+            <tr><td>08:54:18</td><td class="sku">PRODUCT_STATUS_CHANGE</td><td><span class="badge amber">●&nbsp;Failed, retrying</span></td><td class="num">431ms</td><td>UK FBT</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          <b>Duplicate rate today:</b> 13 / 1,402 = 0.9%. Healthy. &nbsp;&nbsp;
+          <b>Alert threshold:</b> &gt; 50% sustained for 10 min.
+        </div>
+      </main>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================== FOOTER ============================== -->
+<section class="section">
+  <div class="h-divider"></div>
+  <div class="text-sm text-soft">
+    <b>Source of truth:</b> this file lives at
+    <span class="kbd">D:\office porjects\tiktok-fbt-microservice\mockup.html</span>.
+    Open it directly in any browser; nothing external loads. <br>
+    Companion docs (data model, phases, deployment, risks) are in the same folder as numbered markdown files.
+  </div>
+</section>
+
+</div><!-- /.doc -->
+</body>
+</html>
